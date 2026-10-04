@@ -36,31 +36,39 @@ model, flagging low-confidence cases for expert review.
 
 ## Method
 
-1. **Anatomy.** A 3D segmentation network (nnU-Net configuration, five-fold ensemble, loss
-   $\mathcal{L}=\mathcal{L}_{\mathrm{Dice}}+\mathcal{L}_{\mathrm{CE}}$) delineates the aneurysm sac, parent artery,
-   branch arteries and the **neck landing zone**, the ostial surface on which the proximal end of the device sits.
-   The neck plane passes through the landing-zone centroid; its normal $\mathbf{n}$ is the eigenvector of the
-   smallest eigenvalue of the landing-zone covariance, oriented towards the dome.
-2. **Morphometry and planning factors.** Mean and maximum width, height, neck width, width-to-neck ratio, volume,
-   solidity and branch incorporation; the entry angle between the terminal parent artery and the aneurysm axis, the
-   daughter-vessel take-off asymmetry, and the manufacturer's simple-case check.
-3. **Virtual deployment.** Every catalogue size $d$ (nominal width $W_d$, height $H_d$) is placed on the landing
-   zone along the sac axis and conformed to the sac wall:
+**1. Anatomy.** A 3D segmentation network (nnU-Net configuration, five-fold ensemble) is trained with the loss
+$`\mathcal{L}=\mathcal{L}_{\mathrm{Dice}}+\mathcal{L}_{\mathrm{CE}}`$ to delineate the aneurysm sac, parent artery,
+branch arteries and the **neck landing zone**, the ostial surface on which the proximal end of the device sits. The
+neck plane passes through the landing-zone centroid; its normal $`\mathbf{n}`$ is the eigenvector of the smallest
+eigenvalue of the landing-zone covariance, oriented towards the dome.
 
-   $$c = 1-\frac{\bar{r}}{W_d/2}, \qquad H' = H_d + k\,W_d\,c, \qquad g = h_{\mathrm{sac}} - H',$$
+**2. Morphometry and planning factors.** Mean and maximum width, height, neck width, width-to-neck ratio, volume,
+solidity and branch incorporation; the entry angle between the terminal parent artery and the aneurysm axis, the
+daughter-vessel take-off asymmetry, and the manufacturer's simple-case check.
 
-   with lateral compression $c$, deployed height $H'$, elongation coefficient $k$ (fitted on post-deployment VasoCT)
-   and dome clearance $g$, plus wall apposition, neck coverage and margin, protrusion and a fluoroscopic rehearsal
-   of the deployment stages.
-4. **Size ranking.** Over the feasible sizes $\mathcal{C}(x)=\{d: W_d \ge N_{\max}\}$,
+**3. Virtual deployment.** Every catalogue size $`d`$ (nominal width $`W_d`$, height $`H_d`$) is placed on the
+landing zone along the sac axis and conformed to the sac wall:
 
-   $$P(d \mid x)=\frac{\exp\left(\beta^{\mathrm{T}}\phi(x,d)\right)}{\sum_{d' \in \mathcal{C}(x)} \exp\left(\beta^{\mathrm{T}}\phi(x,d')\right)},$$
+```math
+c = 1-\frac{\bar{r}}{W_d/2}, \qquad H' = H_d + k\,W_d\,c, \qquad g = h_{\mathrm{sac}} - H'
+```
 
-   where $\phi$ holds the deviation from the sizing-chart size, the deployment outputs, planning factors, a sac image
-   score, location, rupture status and their interactions; the L2 penalty is chosen by patient-grouped inner
-   cross-validation.
-5. **Review flag.** Cases whose top-1 probability falls below $\tau$, the 20th percentile in development
-   cross-validation, are flagged for expert review.
+with lateral compression $`c`$, deployed height $`H'`$, elongation coefficient $`k`$ (fitted on post-deployment
+VasoCT) and dome clearance $`g`$, plus wall apposition, neck coverage and margin, protrusion and a fluoroscopic
+rehearsal of the deployment stages.
+
+**4. Size ranking.** Over the feasible sizes $`\mathcal{C}(x)=\{d: W_d \ge N_{\max}\}`$,
+
+```math
+P(d \mid x)=\frac{\exp\left(\beta^{\mathrm{T}}\phi(x,d)\right)}{\sum_{d' \in \mathcal{C}(x)} \exp\left(\beta^{\mathrm{T}}\phi(x,d')\right)}
+```
+
+where $`\phi`$ holds the deviation from the sizing-chart size, the deployment outputs, planning factors, a sac image
+score, location, rupture status and their interactions; the L2 penalty is chosen by patient-grouped inner
+cross-validation.
+
+**5. Review flag.** Cases whose top-1 probability falls below $`\tau`$, the 20th percentile in development
+cross-validation, are flagged for expert review.
 
 ## Architecture
 
@@ -96,7 +104,7 @@ virtual deployment, the sizing-chart size, the anatomy and the review flag.
 | <a id="anatomy-network"></a>Anatomy network | `webplanner export-nnunet` + `nnUNetv2_train ... -tr nnUNetTrainerWEBPlanner`, or `webplanner train-seg` | fold checkpoints |
 | Segmentation | `webplanner predict-seg` | 4-class label maps (ensemble + mirroring) |
 | Anatomy | `webplanner analyze` | neck frame, morphometry, planning factors |
-| Elongation | `webplanner fit-elongation` | $k$ with bootstrap CI |
+| Elongation | `webplanner fit-elongation` | $`k`$ with bootstrap CI |
 | Deployment | `webplanner deploy` | 29 virtual deployments per case |
 | Ranking | `webplanner train-ranker` / `--loco` | locked model with checksums / LOCO predictions |
 | External validation | `webplanner evaluate` | agreement, chart comparison, AUROC, subgroups |
