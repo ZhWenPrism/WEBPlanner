@@ -1,0 +1,17 @@
+geometry:
+  origin_radius_mm: 1.5            # vessel origins: artery voxels within 1.5 mm of the landing zone
+  irregular_solidity: 0.90
+  significant_angulation_deg: 60.0 # entry angle threshold, set before analysis
+  asymmetry_deg: 45.0              # daughter take-off angle difference threshold, set before analysis
+deployment:
+  catalogue: configs/device/web17_sl.yaml
+  elongation_k: 0.45               # initial value; refitted with `webplanner fit-elongation`
+  n_angles: 96
+  n_levels: 60
+ranking:
+  l2_grid: [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0]
+  n_splits: 5                      # inner cross-validation by patient
+  selection_metric: log_loss
+  top_k: 3
+  review_quantile: 0.20            # tau = 20th percentile of the top-1 probability in development CV
+  image_score_backend: descriptor

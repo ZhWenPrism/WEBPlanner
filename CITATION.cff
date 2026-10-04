@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. The accompanying article is under peer review; this entry will be updated on publication."
+title: "WEBPlanner: AI planning of Woven EndoBridge device size from 3D rotational angiography"
+type: software
+version: 0.1.0
+license: MIT
+authors:
+  - family-names: Wen
+    given-names: Zhihong
+repository-code: "https://github.com/wenzhihong168/WEBPlanner"
+keywords:
+  - intracranial aneurysm
+  - Woven EndoBridge
+  - 3D rotational angiography
+  - device sizing
+  - clinical decision support

@@ -1,0 +1,13 @@
+# Cohort layout. The manifest lists one patient per row (no identifiers beyond study IDs):
+# case_id, patient_id, centre, treatment (WEB | FD | other), location, ruptured, access_tortuosity,
+# implanted_width, implanted_height, image, label
+data:
+  manifest: data/cohort.csv
+  image_dir: data/processed/images
+  label_dir: data/processed/labels
+  split_file: data/splits/manifest.json
+  external_centre: Centre 3        # designated before model development; never used for training or tuning
+  n_folds: 5                       # patient-level folds within the development cohort
+  spacing_mm: 0.30                 # isotropic resampling
+  crop_mm: 40.0                    # aneurysm-centred cube
+  seed: 2026

@@ -1,0 +1,5 @@
+# Leave-one-centre-out: three refits, each holding out one centre (main paired comparison with the chart).
+defaults:
+  - development.yaml
+experiment: loco
+output_dir: outputs/loco

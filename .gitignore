@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+build/
+dist/
+
+# Local research data (never commit images, identifiers, split manifests or derived records)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/splits/*
+!data/splits/.gitkeep
+*.dcm
+*.nii
+*.nii.gz
+*.nrrd
+*.npz
+*.csv
+*.xlsx
+
+# nnU-Net folders
+nnUNet_raw/
+nnUNet_preprocessed/
+nnUNet_results/
+
+# Training artifacts
+outputs/
+checkpoints/
+runs/
+*.ckpt
+*.pt
+*.pth
+
+# Local system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

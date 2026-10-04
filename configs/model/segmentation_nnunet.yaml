@@ -1,0 +1,8 @@
+# Anatomy network: nnU-Net v2 3d_fullres with the soft Dice + cross-entropy loss (L = L_Dice + L_CE),
+# trained on the patient-level folds of webplanner/data/splits.py and ensembled over five folds.
+segmentation:
+  backend: nnunet
+  nnunet_dataset_id: 501
+  ensemble_folds: [0, 1, 2, 3, 4]
+  mirror_tta: true
+  comparators: [unet3d, swin_unetr]

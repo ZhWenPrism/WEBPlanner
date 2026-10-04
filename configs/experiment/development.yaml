@@ -1,0 +1,13 @@
+# Development on Centres 1 and 2, locked model, then external validation on Centre 3.
+defaults:
+  - ../data/three_centre.yaml
+  - ../model/segmentation_nnunet.yaml
+  - ../model/planner.yaml
+experiment: development
+output_dir: outputs/development
+seed: 2026
+evaluation:
+  n_bootstrap: 4000
+  alpha: 0.05
+  prespecified_subgroups: [simple_case]
+  exploratory_subgroups: [location, ruptured, device_width, angulated, irregular]

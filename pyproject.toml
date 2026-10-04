@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webplanner"
+version = "0.1.0"
+description = "AI planning of Woven EndoBridge (WEB) device size from 3D rotational angiography"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Zhihong Wen" }]
+keywords = ["intracranial aneurysm", "WEB", "3D rotational angiography", "segmentation", "device sizing", "decision support"]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "scikit-image>=0.22",
+  "scikit-learn>=1.3",
+  "statsmodels>=0.14",
+  "pandas>=2.0",
+  "pyyaml>=6.0",
+  "networkx>=3.0",
+  "pydicom>=2.4",
+]
+
+[project.optional-dependencies]
+deep = ["torch>=2.1", "monai>=1.3", "SimpleITK>=2.3", "nibabel>=5.0"]
+nnunet = ["nnunetv2>=2.4"]
+viz = ["matplotlib>=3.7"]
+dev = ["pytest>=7.4", "ruff>=0.4"]
+
+[project.scripts]
+webplanner = "webplanner.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["webplanner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"

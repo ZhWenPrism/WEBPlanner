@@ -1,0 +1,7 @@
+# Clinical evaluation at one centre: planner outputs come from the model trained without that centre.
+defaults:
+  - development.yaml
+experiment: clinical_evaluation
+output_dir: outputs/clinical_evaluation
+evaluation:
+  n_bootstrap: 4000

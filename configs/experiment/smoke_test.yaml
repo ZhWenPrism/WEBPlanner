@@ -1,0 +1,15 @@
+# Minutes on a laptop CPU with synthetic phantoms (`webplanner demo`).
+defaults:
+  - ../model/segmentation_native.yaml
+  - ../model/planner.yaml
+experiment: smoke_test
+output_dir: outputs/smoke_test
+segmentation:
+  backend: native
+  network: residual_unet
+  patch_size: [48, 48, 48]
+  batch_size: 2
+  epochs: 2
+  iterations_per_epoch: 4
+ranking:
+  n_splits: 3
