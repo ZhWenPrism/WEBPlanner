@@ -85,7 +85,7 @@ on this page are produced by the code on synthetic phantoms.
 ## Quick start
 
 ```bash
-git clone https://github.com/wenzhihong168/WEBPlanner.git
+git clone https://github.com/ZhWenPrism/WEBPlanner.git
 cd WEBPlanner
 pip install -e ".[deep,viz,dev]"          # core: NumPy/SciPy/scikit-learn/statsmodels; deep: PyTorch, MONAI, SimpleITK
 pytest                                     # unit and integration tests on synthetic phantoms
@@ -193,7 +193,7 @@ The accompanying article is under peer review. Until it is published, please cit
   author  = {Wen, Zhihong},
   year    = {2026},
   version = {0.1.0},
-  url     = {https://github.com/wenzhihong168/WEBPlanner}
+  url     = {https://github.com/ZhWenPrism/WEBPlanner}
 }
 ```
 
