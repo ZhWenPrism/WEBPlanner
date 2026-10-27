@@ -12,6 +12,10 @@
 
 <sub>3D-RA · neck landing zone · virtual deployment · conditional logit · external validation · reader study</sub>
 
+<p align="center">
+  <a href="#method">Method</a> · <a href="#architecture">Architecture</a> · <a href="#quick-start">Quick start</a> · <a href="#workflow">Workflow</a> · <a href="#documentation">Documentation</a> · <a href="#citation">Citation</a>
+</p>
+
 </div>
 
 <p align="center">
@@ -181,6 +185,8 @@ PyTorch tests are skipped automatically where PyTorch is not installed.
 > **Research use only.** WEBPlanner is not a medical device. Its outputs are proposals for review by qualified
 > neurointerventionalists and must be checked against the anatomy before any clinical use. The device table is a
 > transcription for research and must be verified against the instructions for use in force.
+
+<a id="citation"></a>
 
 <details>
 <summary><b>Citation</b></summary>
