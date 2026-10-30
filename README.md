@@ -182,9 +182,8 @@ PyTorch tests are skipped automatically where PyTorch is not installed.
 [Evaluation protocol](docs/EVALUATION_PROTOCOL.md) · [Model card](docs/MODEL_CARD.md) ·
 [Reproducibility](docs/REPRODUCIBILITY.md) · [Release scope](docs/RELEASE_SCOPE.md)
 
-> **Research use only.** WEBPlanner is not a medical device. Its outputs are proposals for review by qualified
-> neurointerventionalists and must be checked against the anatomy before any clinical use. The device table is a
-> transcription for research and must be verified against the instructions for use in force.
+The default device catalogue transcribes the WEB 17 SL selection table. A custom table can be loaded from a YAML
+file in [`configs/device/`](configs/device).
 
 <a id="citation"></a>
 
