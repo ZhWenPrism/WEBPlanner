@@ -137,11 +137,15 @@ def _deep_update(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
 def parse_overrides(overrides: Sequence[str]) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
     for item in overrides:
-        key, _, raw = item.partition("=")
+        key, separator, raw = item.partition("=")
         node = out
         parts = key.strip().split(".")
+        if not separator or any(not part for part in parts):
+            raise ValueError(f"override must look like key.sub=value, got {item!r}")
         for p in parts[:-1]:
             node = node.setdefault(p, {})
+            if not isinstance(node, dict):
+                raise ValueError(f"override {item!r} traverses a non-mapping value")
         node[parts[-1]] = yaml.safe_load(raw)
     return out
 
