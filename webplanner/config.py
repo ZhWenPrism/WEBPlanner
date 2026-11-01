@@ -115,12 +115,15 @@ def _merge(dc: Any, values: Dict[str, Any]) -> Any:
     return dc
 
 
-def _load_yaml_with_bases(path: Path) -> Dict[str, Any]:
+def _load_yaml_with_bases(path: Path, stack: tuple[Path, ...] = ()) -> Dict[str, Any]:
+    path = path.resolve()
+    if path in stack:
+        raise ValueError("cyclic configuration defaults: " + " -> ".join(str(p) for p in (*stack, path)))
     d = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     bases = d.pop("defaults", [])
     merged: Dict[str, Any] = {}
     for b in bases:
-        merged = _deep_update(merged, _load_yaml_with_bases((path.parent / b).resolve()))
+        merged = _deep_update(merged, _load_yaml_with_bases((path.parent / b).resolve(), (*stack, path)))
     return _deep_update(merged, d)
 
 
