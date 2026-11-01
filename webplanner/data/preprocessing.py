@@ -41,7 +41,9 @@ def crop_cube(vol: Volume, center_mm: Sequence[float], size_mm: float = 40.0, fi
     dst_hi = dst_lo + (src_hi - src_lo)
     if np.all(src_hi > src_lo):
         out[tuple(slice(a, b) for a, b in zip(dst_lo, dst_hi))] = vol.array[tuple(slice(a, b) for a, b in zip(src_lo, src_hi))]
-    return Volume(out, vol.spacing, vol.origin, vol.direction), lo
+    direction = np.asarray(vol.direction).reshape(3, 3)
+    origin_xyz = np.asarray(vol.origin)[::-1] + direction @ (lo * sp)[::-1]
+    return Volume(out, vol.spacing, tuple(origin_xyz[::-1]), vol.direction), lo
 
 
 def uncrop(arr: np.ndarray, offset: np.ndarray, shape: Sequence[int], fill: int = 0) -> np.ndarray:
