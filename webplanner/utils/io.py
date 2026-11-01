@@ -16,8 +16,9 @@ PathLike = Union[str, Path]
 def load_volume(path: PathLike) -> Volume:
     path = Path(path)
     if path.suffix == ".npz":
-        z = np.load(path)
-        return Volume(z["array"], tuple(z["spacing"]), tuple(z.get("origin", (0.0, 0.0, 0.0))))
+        with np.load(path, allow_pickle=False) as z:
+            return Volume(z["array"], tuple(z["spacing"]), tuple(z.get("origin", (0.0, 0.0, 0.0))),
+                          tuple(z.get("direction", np.eye(3).ravel())))
     try:
         import SimpleITK as sitk
 
@@ -31,15 +32,19 @@ def load_volume(path: PathLike) -> Volume:
 
         img = nib.load(str(path))
         arr = np.asarray(img.dataobj).transpose(2, 1, 0)        # nibabel is (x, y, z)
-        sx, sy, sz = img.header.get_zooms()[:3]
-        return Volume(arr, (float(sz), float(sy), float(sx)))
+        lps_affine = np.diag([-1.0, -1.0, 1.0, 1.0]) @ img.affine
+        spacing_xyz = np.linalg.norm(lps_affine[:3, :3], axis=0)
+        direction = lps_affine[:3, :3] / spacing_xyz
+        return Volume(arr, tuple(spacing_xyz[::-1]), tuple(lps_affine[:3, 3][::-1]),
+                      tuple(direction.ravel()))
 
 
 def save_volume(vol: Volume, path: PathLike) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".npz":
-        np.savez_compressed(path, array=vol.array, spacing=np.asarray(vol.spacing), origin=np.asarray(vol.origin))
+        np.savez_compressed(path, array=vol.array, spacing=np.asarray(vol.spacing),
+                            origin=np.asarray(vol.origin), direction=np.asarray(vol.direction))
         return path
     try:
         import SimpleITK as sitk
@@ -47,11 +52,15 @@ def save_volume(vol: Volume, path: PathLike) -> Path:
         img = sitk.GetImageFromArray(vol.array)
         img.SetSpacing(tuple(reversed(vol.spacing)))
         img.SetOrigin(tuple(reversed(vol.origin)))
+        img.SetDirection(tuple(vol.direction))
         sitk.WriteImage(img, str(path), useCompression=True)
     except ImportError:
         import nibabel as nib
 
-        aff = np.diag(list(reversed(vol.spacing)) + [1.0])
+        lps_affine = np.eye(4)
+        lps_affine[:3, :3] = np.asarray(vol.direction).reshape(3, 3) @ np.diag(list(reversed(vol.spacing)))
+        lps_affine[:3, 3] = tuple(reversed(vol.origin))
+        aff = np.diag([-1.0, -1.0, 1.0, 1.0]) @ lps_affine
         nib.save(nib.Nifti1Image(vol.array.transpose(2, 1, 0), aff), str(path))
     return path
 
