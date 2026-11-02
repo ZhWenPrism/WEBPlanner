@@ -34,7 +34,7 @@ def _spacing(spacing: Spacing, ndim: int, *volumes: object) -> np.ndarray:
                 spacing = v.spacing
                 break
     sp = np.ones(ndim) if spacing is None else np.asarray(spacing, float)
-    if sp.shape != (ndim,) or np.any(sp <= 0):
+    if sp.shape != (ndim,) or not np.isfinite(sp).all() or np.any(sp <= 0):
         raise ValueError(f"spacing must have {ndim} positive values, got {spacing}")
     return sp
 
