@@ -65,7 +65,7 @@ def ranking_metrics(proba: Sequence[np.ndarray], chosen: np.ndarray) -> Dict[str
         raise ValueError("chosen indices must be finite integers")
     for p, c in zip(proba, chosen):
         if (p.ndim != 1 or not p.size or not np.isfinite(p).all()
-                or np.any(p < 0) or np.any(p > 1) or not np.isclose(p.sum(), 1., rtol=0, atol=1e-8)):
+                or np.any(p < 0) or np.any(p > 1) or not np.isclose(p.sum(), 1., rtol=0, atol=1e-6)):
             raise ValueError("each probability vector must be finite, non-negative and sum to one")
         if c < 0 or c >= p.size:
             raise ValueError("chosen index is outside its probability vector")
