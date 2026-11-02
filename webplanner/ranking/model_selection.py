@@ -57,7 +57,19 @@ def group_kfold(groups: Sequence[Any], n_splits: int = 5, seed: int = 0) -> List
 
 def ranking_metrics(proba: Sequence[np.ndarray], chosen: np.ndarray) -> Dict[str, float]:
     """Mean log loss (probabilities clipped at 1e-12), top-1 and top-3 accuracy."""
-    chosen = np.asarray(chosen, int)
+    chosen = np.asarray(chosen, float)
+    proba = [np.asarray(p, float) for p in proba]
+    if chosen.ndim != 1 or len(chosen) != len(proba) or not len(chosen):
+        raise ValueError("chosen and proba must contain one entry per case")
+    if not np.isfinite(chosen).all() or not np.equal(chosen, np.floor(chosen)).all():
+        raise ValueError("chosen indices must be finite integers")
+    for p, c in zip(proba, chosen):
+        if (p.ndim != 1 or not p.size or not np.isfinite(p).all()
+                or np.any(p < 0) or np.any(p > 1) or not np.isclose(p.sum(), 1., rtol=0, atol=1e-8)):
+            raise ValueError("each probability vector must be finite, non-negative and sum to one")
+        if c < 0 or c >= p.size:
+            raise ValueError("chosen index is outside its probability vector")
+    chosen = chosen.astype(int)
     p_c = np.array([p[c] for p, c in zip(proba, chosen)])
     rank = np.array([int(np.sum(p > p[c])) for p, c in zip(proba, chosen)])
     return {"n": int(len(chosen)), "log_loss": float(np.mean(-np.log(np.maximum(p_c, EPS)))),
