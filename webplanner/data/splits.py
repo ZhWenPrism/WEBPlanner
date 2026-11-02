@@ -67,6 +67,8 @@ def patient_kfold(records: Sequence[CaseRecord], k: int = 5, seed: int = 0, stra
     by_patient: Dict[str, List[CaseRecord]] = {}
     for r in records:
         by_patient.setdefault(r.patient_id, []).append(r)
+    if isinstance(k, (bool, np.bool_)) or not isinstance(k, (int, np.integer)) or not 2 <= k <= len(by_patient):
+        raise ValueError(f"k must be an integer from 2 to the number of patients ({len(by_patient)})")
     strata: Dict[str, List[str]] = {}
     for pid, rs in by_patient.items():
         key = str(getattr(rs[0], stratify_by)) if stratify_by else "all"
