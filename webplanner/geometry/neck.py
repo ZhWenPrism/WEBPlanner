@@ -50,6 +50,7 @@ def fit_neck_frame(labels: Volume, min_points: int = MIN_NECK_POINTS) -> NeckFra
     """PCA neck frame (centre, normal towards the dome, in-plane axes ``e1``, ``e2 = normal x e1``).
 
     ``eigenvalues`` are the covariance eigenvalues in ascending order (the first belongs to the normal).
+    A circular neck uses the sac's in-plane principal axis. If both are isotropic, the least-aligned array axis is used.
     """
     lab = np.asarray(labels.array)
     sp = np.asarray(labels.spacing)
@@ -64,7 +65,17 @@ def fit_neck_frame(labels: Volume, min_points: int = MIN_NECK_POINTS) -> NeckFra
         to_dome = center - np.argwhere((lab == PARENT) | (lab == BRANCH)).mean(axis=0) * sp
     if normal @ to_dome < 0:
         normal = -normal
-    e1 = evecs[:, 2] - (evecs[:, 2] @ normal) * normal
+    major = evecs[:, 2]
+    tolerance = 64 * np.finfo(float).eps * max(1.0, float(evals[-1]))
+    if evals[-1] - evals[-2] <= tolerance:
+        sac_points = np.argwhere(sac_mask(lab)) * sp - center
+        projected = sac_points - (sac_points @ normal)[:, None] * normal
+        sac_values, sac_vectors = np.linalg.eigh(np.cov(projected, rowvar=False))
+        if sac_values[-1] - sac_values[-2] > tolerance:
+            major = sac_vectors[:, -1]
+        else:
+            major = np.eye(3)[np.argmin(np.abs(np.round(normal, 12)))]
+    e1 = major - (major @ normal) * normal
     e1 = unit(e1)
     e2 = np.cross(normal, e1)
     return NeckFrame(center=center, normal=normal, e1=e1, e2=e2, eigenvalues=evals, n_points=len(pts))
