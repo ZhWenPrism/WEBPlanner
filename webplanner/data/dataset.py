@@ -161,7 +161,7 @@ class PatchDataset(_BaseDataset):
         image = crop_with_padding(self.images[case], start, self.sample_size, self.pad_values[case])
         label = crop_with_padding(self.labels[case], start, self.sample_size, 0)
         if self.transform is not None:
-            image, label = self.transform(image, label, rng)
+            image, label = self.transform(image.copy(), label.copy(), rng)
         image, label = center_crop_or_pad(image, label, self.patch_size, self.pad_values[case])
         return np.array(image, dtype=np.float32), np.array(label, dtype=np.int64)       # always copies
 
