@@ -8,6 +8,7 @@ Windows overlap by ``overlap`` (0.5) of the patch; volumes smaller than the patc
 from __future__ import annotations
 
 from itertools import combinations, product
+from numbers import Integral
 from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -62,6 +63,15 @@ class SlidingWindowPredictor:
             raise ValueError("no model given")
         if not 0.0 <= overlap < 1.0:
             raise ValueError("overlap must be in [0, 1)")
+        patch = tuple(patch_size)
+        if len(patch) != 3 or any(isinstance(p, bool) or not isinstance(p, Integral) or p <= 0 for p in patch):
+            raise ValueError("patch_size must contain three positive integers")
+        if isinstance(batch_size, bool) or not isinstance(batch_size, Integral) or batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+        axes = tuple(mirror_axes) if mirror_axes is not None else ()
+        if (any(isinstance(a, bool) or not isinstance(a, Integral) or a not in range(3) for a in axes)
+                or len(set(axes)) != len(axes)):
+            raise ValueError("mirror_axes must contain distinct spatial axes in [0, 2]")
         if device is None:
             try:
                 device = next(self.models[0].parameters()).device
@@ -70,13 +80,12 @@ class SlidingWindowPredictor:
         self.device = torch.device(device)
         for m in self.models:
             m.to(self.device).eval()
-        self.patch_size = tuple(int(p) for p in patch_size)
+        self.patch_size = tuple(int(p) for p in patch)
         self.overlap, self.batch_size, self.pad_value = float(overlap), int(batch_size), pad_value
         self.amp = amp and self.device.type == "cuda"
         self.accumulate_on_device = accumulate_on_device
         g = gaussian_importance_map(self.patch_size, sigma_scale) if use_gaussian else np.ones(self.patch_size, np.float32)
         self.importance = torch.from_numpy(g)
-        axes = tuple(mirror_axes or ())
         self.mirror_sets: List[Tuple[int, ...]] = [c for r in range(len(axes) + 1) for c in combinations(axes, r)]
 
     @torch.no_grad()
