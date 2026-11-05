@@ -38,6 +38,13 @@ def _read(path: Path, stop_before_pixels: bool = True):
     return pydicom.dcmread(str(path), stop_before_pixels=stop_before_pixels, force=True)
 
 
+def _image_series_uid(ds) -> str | None:
+    uid = getattr(ds, "SeriesInstanceUID", None)
+    if uid and getattr(ds, "Rows", 0) and getattr(ds, "Columns", 0):
+        return str(uid)
+    return None
+
+
 def list_series(folder: Union[str, Path]) -> List[SeriesInfo]:
     """Technical summary of every series in a folder (recursive)."""
     groups: Dict[str, List[Path]] = defaultdict(list)
@@ -49,9 +56,10 @@ def list_series(folder: Union[str, Path]) -> List[SeriesInfo]:
             ds = _read(p)
         except Exception:
             continue
-        uid = str(getattr(ds, "SeriesInstanceUID", "unknown"))
-        groups[uid].append(p)
-        first.setdefault(uid, ds)
+        uid = _image_series_uid(ds)
+        if uid is not None:
+            groups[uid].append(p)
+            first.setdefault(uid, ds)
     out = []
     for uid, files in groups.items():
         ds = first[uid]
@@ -91,8 +99,10 @@ def load_3dra_series(folder: Union[str, Path], series_uid: Optional[str] = None)
                 ds = _read(p)
             except Exception:
                 continue
-            if str(getattr(ds, "SeriesInstanceUID", "")) == series_uid:
+            if _image_series_uid(ds) == series_uid:
                 files.append(p)
+    if not files:
+        raise FileNotFoundError("requested DICOM image series was not found")
     if len(files) == 1:
         return _load_multiframe(_read(files[0], stop_before_pixels=False))
     return _load_stack([_read(p, stop_before_pixels=False) for p in files])
