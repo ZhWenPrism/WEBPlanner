@@ -64,7 +64,11 @@ def slab_extents(h: np.ndarray, uv: np.ndarray, directions: np.ndarray, slab_mm:
     ``uv`` is ``(n, 2)``, ``directions`` is ``(k, 2)`` (unit vectors in the (u, v) plane). Returns ``(k,)``.
     """
     proj = uv @ directions.T
-    slab = np.floor(h / slab_mm).astype(int)
+    scaled = h / slab_mm
+    nearest = np.rint(scaled)
+    tolerance = 64 * np.finfo(float).eps * np.maximum(1.0, np.abs(scaled))
+    scaled = np.where(np.abs(scaled - nearest) <= tolerance, nearest, scaled)
+    slab = np.floor(scaled).astype(int)
     order = np.argsort(slab, kind="stable")
     bounds = np.flatnonzero(np.diff(slab[order])) + 1
     best = np.zeros(len(directions))
