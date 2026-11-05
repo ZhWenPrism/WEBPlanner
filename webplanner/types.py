@@ -36,7 +36,13 @@ class Volume:
     def __post_init__(self) -> None:
         if self.array.ndim != 3:
             raise ValueError(f"expected a 3D array, got shape {self.array.shape}")
-        self.spacing = tuple(float(s) for s in self.spacing)
+        for name, size in (("spacing", 3), ("origin", 3), ("direction", 9)):
+            values = tuple(float(value) for value in getattr(self, name))
+            if len(values) != size or not np.isfinite(values).all():
+                raise ValueError(f"{name} must contain {size} finite values")
+            if name == "spacing" and any(value <= 0 for value in values):
+                raise ValueError("spacing must contain positive voxel sizes")
+            setattr(self, name, values)
 
     @property
     def shape(self) -> Tuple[int, int, int]:
