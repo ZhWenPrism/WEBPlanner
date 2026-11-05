@@ -103,42 +103,62 @@ def load_3dra_series(folder: Union[str, Path], series_uid: Optional[str] = None)
                 files.append(p)
     if not files:
         raise FileNotFoundError("requested DICOM image series was not found")
-    if len(files) == 1:
-        return _load_multiframe(_read(files[0], stop_before_pixels=False))
-    return _load_stack([_read(p, stop_before_pixels=False) for p in files])
+    dss = [_read(p, stop_before_pixels=False) for p in files]
+    if len(dss) == 1 and (int(getattr(dss[0], "NumberOfFrames", 1) or 1) > 1
+                          or hasattr(dss[0], "PerFrameFunctionalGroupsSequence")):
+        return _load_multiframe(dss[0])
+    return _load_stack(dss)
+
+
+def _direction(orientation) -> np.ndarray:
+    iop = np.asarray(orientation, dtype=float)
+    row, column = iop[:3], iop[3:]
+    return np.column_stack((row, column, np.cross(row, column)))
 
 
 def _load_stack(dss) -> Volume:
-    iop = np.asarray(dss[0].ImageOrientationPatient, float)
-    normal = np.cross(iop[:3], iop[3:])
+    direction = _direction(dss[0].ImageOrientationPatient)
+    normal = direction[:, 2]
     pos = np.array([np.asarray(d.ImagePositionPatient, float) @ normal for d in dss])
     order = np.argsort(pos)
     dss = [dss[i] for i in order]
     pos = pos[order]
     arr = np.stack([_rescale(d, d.pixel_array) for d in dss])
-    dz = float(np.median(np.diff(pos))) if len(pos) > 1 else float(getattr(dss[0], "SliceThickness", 1.0))
+    dz = (float(np.median(np.diff(pos))) if len(pos) > 1 else
+          float(getattr(dss[0], "SpacingBetweenSlices", getattr(dss[0], "SliceThickness", 1.0))))
     dy, dx = (float(x) for x in dss[0].PixelSpacing)
     ox, oy, oz = (float(x) for x in dss[0].ImagePositionPatient)
-    return Volume(arr, (abs(dz), dy, dx), (oz, oy, ox))
+    return Volume(arr, (abs(dz), dy, dx), (oz, oy, ox), tuple(direction.ravel()))
 
 
 def _load_multiframe(ds) -> Volume:
     arr = _rescale(ds, ds.pixel_array)
+    if arr.ndim == 2:
+        arr = arr[None]
     if arr.ndim != 3:
         raise ValueError("expected a multi-frame volume")
+    shared = next(iter(getattr(ds, "SharedFunctionalGroupsSequence", ())), None)
+    orient = next(iter(getattr(shared, "PlaneOrientationSequence", ())), ds)
+    measures = next(iter(getattr(shared, "PixelMeasuresSequence", ())), ds)
+    direction = _direction(getattr(orient, "ImageOrientationPatient", (1, 0, 0, 0, 1, 0)))
+    origin = getattr(ds, "ImagePositionPatient", (0., 0., 0.))
+    dy, dx = (float(x) for x in getattr(measures, "PixelSpacing", getattr(ds, "PixelSpacing", (1., 1.))))
     dz = None
     try:
-        pf = ds.PerFrameFunctionalGroupsSequence
-        iop = np.asarray(ds.SharedFunctionalGroupsSequence[0].PlaneOrientationSequence[0].ImageOrientationPatient, float)
-        normal = np.cross(iop[:3], iop[3:])
-        pos = np.array([np.asarray(f.PlanePositionSequence[0].ImagePositionPatient, float) @ normal for f in pf])
-        order = np.argsort(pos)
+        positions = np.asarray([f.PlanePositionSequence[0].ImagePositionPatient
+                                for f in ds.PerFrameFunctionalGroupsSequence], dtype=float)
+    except (AttributeError, IndexError):
+        positions = None
+    if positions is not None:
+        if positions.shape != (len(arr), 3):
+            raise ValueError("DICOM frame positions must match the pixel frame count")
+        offsets = positions @ direction[:, 2]
+        order = np.argsort(offsets)
         arr = arr[order]
-        dz = float(np.median(np.diff(pos[order])))
-        meas = ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0]
-        dy, dx = (float(x) for x in meas.PixelSpacing)
-    except Exception:
-        dy, dx = (float(x) for x in getattr(ds, "PixelSpacing", (1.0, 1.0)))
+        origin = positions[order[0]]
+        if len(order) > 1:
+            dz = float(np.median(np.diff(offsets[order])))
     if dz is None:
-        dz = float(getattr(ds, "SpacingBetweenSlices", getattr(ds, "SliceThickness", dy)))
-    return Volume(arr, (abs(dz), dy, dx))
+        thickness = getattr(measures, "SliceThickness", getattr(ds, "SliceThickness", dy))
+        dz = float(getattr(measures, "SpacingBetweenSlices", getattr(ds, "SpacingBetweenSlices", thickness)))
+    return Volume(arr, (abs(dz), dy, dx), tuple(float(x) for x in reversed(origin)), tuple(direction.ravel()))

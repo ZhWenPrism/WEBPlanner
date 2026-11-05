@@ -39,7 +39,7 @@ an evaluation layer. This page fixes the interfaces between packages.
 | Module | Public interface |
 |---|---|
 | `synthetic.py` | `PhantomSpec`, `make_phantom(spec) -> Phantom(image, labels, spec, truth)`, `random_spec(rng)`, `operator_choice(...)`, `synthetic_cases(n, centres, seed)` |
-| `dicom.py` | `load_3dra_series(folder) -> Volume`: reads a Philips 3D-RA series, sorts slices, returns an isotropic volume |
+| `dicom.py` | `load_3dra_series(folder) -> Volume`: reads a Philips 3D-RA series, sorts slices, preserves native spacing and patient geometry |
 | `preprocessing.py` | `resample_isotropic(vol, spacing)`, `crop_cube(vol, center_mm, size_mm=40)`, `normalise_intensity(vol, lo=0.5, hi=99.5)`, `Preprocessor` (fit on training folds only) |
 | `splits.py` | `external_split(records, external_centre)`, `patient_kfold(records, k=5, seed)`, `leave_one_centre_out(records)`, `SplitManifest` (JSON), `assert_no_leakage(...)` |
 | `transforms.py` | 3D augmentation (rotation, scaling, elastic, gamma, noise, blur, mirroring), NumPy implementations |
