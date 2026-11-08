@@ -11,6 +11,8 @@ from ..types import CaseRecord, DeviceSize, Volume
 from ..utils.io import load_volume
 
 REQUIRED = ("case_id", "patient_id", "centre")
+MANIFEST_COLUMNS = REQUIRED + ("treatment", "location", "ruptured", "access_tortuosity", "implanted_width",
+                               "implanted_height", "image", "label")
 
 
 def _opt_bool(v) -> Optional[bool]:
@@ -65,15 +67,25 @@ def read_cohort(path: Union[str, Path]) -> List[CaseRecord]:
 def write_cohort(records: Sequence[CaseRecord], path: Union[str, Path]) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    base = path.parent.resolve()
+
+    def export_path(value: Optional[str]) -> str:
+        if not value:
+            return ""
+        resolved = Path(value).resolve()
+        return str(resolved.relative_to(base) if resolved.is_relative_to(base) else resolved)
+
     rows = []
     for r in records:
-        rel = lambda p: str(Path(p).resolve().relative_to(path.parent.resolve())) if p else ""
+        overlap = r.extra.keys() & set(MANIFEST_COLUMNS)
+        if overlap:
+            raise ValueError(f"extra metadata overlaps manifest columns: {sorted(overlap)}")
         rows.append({"case_id": r.case_id, "patient_id": r.patient_id, "centre": r.centre, "treatment": r.treatment,
                      "location": r.location, "ruptured": r.ruptured, "access_tortuosity": r.access_tortuosity,
                      "implanted_width": r.implanted.width if r.implanted else None,
                      "implanted_height": r.implanted.height if r.implanted else None,
-                     "image": rel(r.image_path), "label": rel(r.label_path), **r.extra})
-    pd.DataFrame(rows).to_csv(path, index=False)
+                     "image": export_path(r.image_path), "label": export_path(r.label_path), **r.extra})
+    pd.DataFrame(rows, columns=None if rows else MANIFEST_COLUMNS).to_csv(path, index=False)
     return path
 
 
