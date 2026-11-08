@@ -16,7 +16,12 @@ REQUIRED = ("case_id", "patient_id", "centre")
 def _opt_bool(v) -> Optional[bool]:
     if v is None or (isinstance(v, float) and np.isnan(v)) or str(v).strip() == "":
         return None
-    return str(v).strip().lower() in ("1", "true", "yes", "y")
+    token = str(v).strip().lower()
+    if token in ("1", "1.0", "true", "yes", "y"):
+        return True
+    if token in ("0", "0.0", "false", "no", "n"):
+        return False
+    raise ValueError("ruptured must be a boolean or 0/1")
 
 
 def _opt_str(v) -> Optional[str]:
@@ -38,9 +43,16 @@ def read_cohort(path: Union[str, Path]) -> List[CaseRecord]:
     base = path.parent
     out = []
     for _, r in df.iterrows():
+        width = _opt_str(r.get("implanted_width"))
+        height = _opt_str(r.get("implanted_height"))
+        if (width is None) != (height is None):
+            raise ValueError(f"{path}: both implanted dimensions are required when either is present")
         imp = None
-        if "implanted_width" in df and pd.notna(r.get("implanted_width")) and pd.notna(r.get("implanted_height")):
-            imp = DeviceSize(float(r["implanted_width"]), float(r["implanted_height"]))
+        if width is not None and height is not None:
+            w, h = float(width), float(height)
+            if not all(np.isfinite(v) and v > 0 for v in (w, h)):
+                raise ValueError(f"{path}: implanted dimensions must be positive finite values")
+            imp = DeviceSize(w, h)
         extra: Dict[str, object] = {k: r[k] for k in df.columns if k.startswith("vasoct_") and pd.notna(r[k])}
         rel = lambda k: str((base / r[k]).resolve()) if k in df and _opt_str(r.get(k)) else None
         out.append(CaseRecord(case_id=str(r["case_id"]), patient_id=str(r["patient_id"]), centre=str(r["centre"]),
