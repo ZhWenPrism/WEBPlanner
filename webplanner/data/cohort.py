@@ -96,11 +96,17 @@ def select(records: Sequence[CaseRecord], ids: Sequence[str]) -> List[CaseRecord
 
 def label_loader(label_dir: Optional[Union[str, Path]] = None):
     """Callable record -> label Volume, from ``record.label_path`` or ``<label_dir>/<case_id>.(npz|nii.gz)``."""
+    directory = Path(label_dir).resolve() if label_dir is not None else None
+
     def load(rec: CaseRecord) -> Volume:
-        if label_dir is not None:
+        if directory is not None:
+            if rec.case_id in ("", ".", "..") or any(c in rec.case_id for c in ("/", "\\", ":")):
+                raise ValueError("case_id must be a single label filename stem")
             for ext in (".npz", ".nii.gz", ".nii"):
-                p = Path(label_dir) / f"{rec.case_id}{ext}"
-                if p.exists():
+                p = (directory / f"{rec.case_id}{ext}").resolve()
+                if not p.is_relative_to(directory):
+                    raise ValueError("label file resolves outside label_dir")
+                if p.is_file():
                     return load_volume(p)
             raise FileNotFoundError(f"no label file for {rec.case_id} in {label_dir}")
         if not rec.label_path:
