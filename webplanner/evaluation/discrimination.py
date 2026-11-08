@@ -31,9 +31,10 @@ def _binary(y_true: ArrayLike) -> np.ndarray:
 
 
 def _scores(y: np.ndarray, scores: Sequence[ArrayLike]) -> np.ndarray:
-    s = np.vstack([np.asarray(x, float) for x in scores])
-    if s.shape[1] != y.size:
-        raise ValueError(f"scores must have length {y.size}, got {s.shape[1]}")
+    vectors = [np.asarray(x, float) for x in scores]
+    if any(vector.shape != y.shape for vector in vectors):
+        raise ValueError(f"each score must be one-dimensional with length {y.size}")
+    s = np.vstack(vectors)
     if not np.isfinite(s).all():
         raise ValueError("scores contain missing or infinite values")
     return s
