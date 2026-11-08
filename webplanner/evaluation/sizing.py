@@ -8,6 +8,7 @@ method comparisons use Newcombe's interval (Newcombe, 1998, method 10) and the e
 from __future__ import annotations
 
 import warnings
+from numbers import Integral
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -41,23 +42,15 @@ def as_size(x: SizeLike) -> DeviceSize:
     return DeviceSize(float(seq[0]), float(seq[1]))
 
 
-def _is_single(x: object) -> bool:
+def _ranked_list(x: object) -> Tuple[List[DeviceSize], bool]:
     if isinstance(x, (DeviceSize, str)):
-        return True
-    try:
-        seq = list(x)  # type: ignore[arg-type]
-    except TypeError:
-        return False
-    return len(seq) == 2 and all(isinstance(v, (int, float, np.integer, np.floating)) for v in seq)
-
-
-def _ranked_list(x: object) -> List[DeviceSize]:
-    if _is_single(x):
-        return [as_size(x)]  # type: ignore[arg-type]
-    out = [as_size(v) for v in x]  # type: ignore[union-attr]
-    if not out:
+        return [as_size(x)], False
+    items = list(x)  # type: ignore[arg-type]
+    if len(items) == 2 and all(isinstance(v, (int, float, np.integer, np.floating)) for v in items):
+        return [as_size(items)], False
+    if not items:
         raise ValueError("empty ranked list")
-    return out
+    return [as_size(item) for item in items], True
 
 
 def _same(a: DeviceSize, b: DeviceSize) -> bool:
@@ -72,6 +65,8 @@ def sizing_cases(pred: Sequence[object], implanted: Sequence[SizeLike], catalogu
     exact_top1, top3`` (ranked lists only), ``within_one_size, clinically_acceptable, exact_width, exact_height,
     width_steps, height_diff_mm, narrower, wider, taller, shorter``. Steps and differences are plan minus implanted.
     """
+    if isinstance(k, bool) or not isinstance(k, Integral) or k < 1:
+        raise ValueError("k must be a positive integer")
     cat = catalogue or Catalogue.default()
     if len(pred) != len(implanted):
         raise ValueError(f"pred and implanted differ in length: {len(pred)} vs {len(implanted)}")
@@ -81,10 +76,10 @@ def sizing_cases(pred: Sequence[object], implanted: Sequence[SizeLike], catalogu
     if missing:
         raise ValueError(f"implanted size missing for {len(missing)} cases (positions {missing[:10]}); "
                          "remove them explicitly before the analysis")
-    lists = [_ranked_list(p) for p in pred]
-    ranked = any(not _is_single(p) for p in pred)
+    parsed = [_ranked_list(p) for p in pred]
+    ranked = k > 1 and any(is_ranked for _, is_ranked in parsed)
     rows = []
-    for i, (lst, imp_) in enumerate(zip(lists, implanted)):
+    for (lst, _), imp_ in zip(parsed, implanted):
         imp = as_size(imp_)
         top1 = lst[0]
         dw, dh = cat.steps_between(imp, top1)
@@ -109,11 +104,12 @@ def sizing_agreement(pred: Sequence[object], implanted: Sequence[SizeLike], cata
 
     Returns ``{"n": n, "exact_top1": Proportion, "top3": Proportion (ranked lists only), "within_one_size",
     "clinically_acceptable", "exact_width", "exact_height", "narrower", "wider", "taller", "shorter"}``; every
-    proportion has denominator ``n`` (all cases). ``top3`` is ``top{k}`` for another ``k``.
+    proportion has denominator ``n`` (all cases). With ``k=1``, ``exact_top1`` is the top-1 proportion.
     """
     df = sizing_cases(pred, implanted, catalogue, k=k)
     out: Dict[str, object] = {"n": int(len(df))}
-    for col in [c if c != "top3" else f"top{k}" for c in OUTCOMES]:
+    outcomes = [f"top{k}" if c == "top3" else c for c in OUTCOMES if k > 1 or c != "top3"]
+    for col in outcomes:
         if col in df:
             out[col] = proportion(int(df[col].sum()), int(len(df)), alpha)
     return out
