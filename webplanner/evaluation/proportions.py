@@ -69,6 +69,8 @@ def wilson_ci(k: Union[int, ArrayLike], n: Union[int, ArrayLike], alpha: float =
     """
     k_arr = np.asarray(k, float)
     n_arr = np.asarray(n, float)
+    if any(not np.isfinite(a).all() or np.any(a != np.floor(a)) for a in (k_arr, n_arr)):
+        raise ValueError("k and n must contain finite integer counts")
     if np.any(n_arr < 0) or np.any(k_arr < 0) or np.any(k_arr > n_arr):
         raise ValueError(f"need 0 <= k <= n, got k={k}, n={n}")
     z = _z(alpha)
@@ -88,8 +90,9 @@ def wilson_ci(k: Union[int, ArrayLike], n: Union[int, ArrayLike], alpha: float =
 
 def proportion(k: int, n: int, alpha: float = 0.05) -> Proportion:
     """``k/n`` with its Wilson interval."""
+    k, n = _check_count(k, "k"), _check_count(n, "n")
     lo, hi = wilson_ci(k, n, alpha)
-    return Proportion(int(k), int(n), float(k) / n if n > 0 else float("nan"), lo, hi, alpha)
+    return Proportion(k, n, float(k) / n if n > 0 else float("nan"), lo, hi, alpha)
 
 
 def proportion_of(x: ArrayLike, alpha: float = 0.05, name: str = "x") -> Proportion:
@@ -117,7 +120,7 @@ def discordant_counts(x1: ArrayLike, x2: ArrayLike) -> Tuple[int, int]:
 
 def _check_count(v: object, name: str) -> int:
     f = float(v)
-    if f < 0 or f != int(f):
+    if not np.isfinite(f) or f < 0 or not f.is_integer():
         raise ValueError(f"{name} must be a non-negative integer count, got {v}")
     return int(f)
 
