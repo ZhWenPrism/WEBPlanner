@@ -18,8 +18,8 @@ from ..utils.io import read_json, write_json
 def fit_tau(top1_probs: Sequence[float], quantile: float = 0.2) -> float:
     """``numpy.quantile`` (linear interpolation) of the development top-1 probabilities."""
     p = np.asarray(top1_probs, float)
-    if p.size == 0 or not np.isfinite(p).all():
-        raise ValueError("top-1 probabilities must be a non-empty finite array")
+    if p.ndim != 1 or p.size == 0 or not np.all((0.0 <= p) & (p <= 1.0)):
+        raise ValueError("top-1 probabilities must be a non-empty vector with values in [0, 1]")
     if not 0.0 <= quantile <= 1.0:
         raise ValueError("quantile must lie in [0, 1]")
     return float(np.quantile(p, quantile))
@@ -28,7 +28,12 @@ def fit_tau(top1_probs: Sequence[float], quantile: float = 0.2) -> float:
 def flag(p_top1: Union[float, Sequence[float], np.ndarray], tau: float) -> Union[bool, np.ndarray]:
     """True when the top-1 probability is strictly below ``tau`` (scalar in, bool out; array in, bool array out)."""
     p = np.asarray(p_top1, float)
-    out = p < float(tau)
+    tau = float(tau)
+    if not 0.0 <= tau <= 1.0:
+        raise ValueError("tau must lie in [0, 1]")
+    if not np.all((0.0 <= p) & (p <= 1.0)):
+        raise ValueError("top-1 probabilities must lie in [0, 1]")
+    out = p < tau
     return bool(out) if out.ndim == 0 else out
 
 
