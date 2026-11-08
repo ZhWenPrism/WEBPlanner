@@ -25,10 +25,14 @@ def _opt_str(v) -> Optional[str]:
 
 def read_cohort(path: Union[str, Path]) -> List[CaseRecord]:
     path = Path(path)
-    df = pd.read_csv(path, dtype={"case_id": str, "patient_id": str})
+    df = pd.read_csv(path, converters={name: str.strip for name in REQUIRED})
     missing = [c for c in REQUIRED if c not in df]
     if missing:
         raise ValueError(f"{path}: missing columns {missing}")
+    for column in REQUIRED:
+        empty = df[column].isna() | df[column].eq("")
+        if empty.any():
+            raise ValueError(f"{path}: missing {column} in {int(empty.sum())} rows")
     if df.case_id.duplicated().any():
         raise ValueError(f"{path}: duplicated case_id values")
     base = path.parent
