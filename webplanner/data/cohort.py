@@ -11,6 +11,8 @@ from ..types import CaseRecord, DeviceSize, Volume
 from ..utils.io import load_volume
 
 REQUIRED = ("case_id", "patient_id", "centre")
+_OPTIONAL_NA = ("", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan", "1.#IND",
+                "1.#QNAN", "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null")
 MANIFEST_COLUMNS = REQUIRED + ("treatment", "location", "ruptured", "access_tortuosity", "implanted_width",
                                "implanted_height", "image", "label")
 
@@ -32,10 +34,14 @@ def _opt_str(v) -> Optional[str]:
 
 def read_cohort(path: Union[str, Path]) -> List[CaseRecord]:
     path = Path(path)
-    df = pd.read_csv(path, converters={name: str.strip for name in REQUIRED})
-    missing = [c for c in REQUIRED if c not in df]
+    columns = pd.read_csv(path, nrows=0).columns
+    missing = [c for c in REQUIRED if c not in columns]
     if missing:
         raise ValueError(f"{path}: missing columns {missing}")
+    # Missing-value markers apply to optional fields, while study identifiers are literal.
+    na_values = {name: _OPTIONAL_NA for name in columns if name not in REQUIRED}
+    df = pd.read_csv(path, converters={name: str.strip for name in REQUIRED},
+                     keep_default_na=False, na_values=na_values)
     for column in REQUIRED:
         empty = df[column].isna() | df[column].eq("")
         if empty.any():
