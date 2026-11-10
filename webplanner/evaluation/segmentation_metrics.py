@@ -24,7 +24,10 @@ Spacing = Optional[Sequence[float]]
 
 
 def _array(x: Union[np.ndarray, Volume]) -> np.ndarray:
-    return x.array if isinstance(x, Volume) else np.asarray(x)
+    array = x.array if isinstance(x, Volume) else np.asarray(x)
+    if np.issubdtype(array.dtype, np.inexact) and not np.isfinite(array).all():
+        raise ValueError("masks and label maps must contain finite voxel values")
+    return array
 
 
 def _spacing(spacing: Spacing, ndim: int, *volumes: object) -> np.ndarray:
@@ -78,7 +81,7 @@ def dice_per_class(pred: Union[np.ndarray, Volume], ref: Union[np.ndarray, Volum
 
 def surface(mask: np.ndarray, connectivity: int = 1) -> np.ndarray:
     """Surface voxels: the mask minus its binary erosion (voxels on the array border count as surface)."""
-    m = np.asarray(mask, bool)
+    m = _array(mask).astype(bool, copy=False)
     if not m.any():
         return m.copy()
     st = ndi.generate_binary_structure(m.ndim, connectivity)

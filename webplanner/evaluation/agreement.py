@@ -56,9 +56,13 @@ def icc_2_1(ratings: ArrayLike, alpha: float = 0.05, nan_policy: str = "raise") 
     freedom of McGraw and Wong (1996). ``nan_policy="omit"`` drops subjects with any missing rating (with a warning
     that gives the numbers before and after); the default raises.
     """
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must lie in (0, 1)")
     y = np.asarray(ratings, float)
     if y.ndim != 2:
         raise ValueError(f"ratings must be (n_subjects, k_raters), got shape {y.shape}")
+    if np.isinf(y).any():
+        raise ValueError("ratings contain infinite values")
     bad = np.isnan(y).any(axis=1)
     if bad.any():
         if nan_policy != "omit":
@@ -125,8 +129,12 @@ def bland_altman(a: ArrayLike, b: ArrayLike, alpha: float = 0.05, loa: float = 0
     y = np.asarray(b, float)
     if x.shape != y.shape or x.ndim != 1:
         raise ValueError(f"a and b must be paired 1D arrays, got {x.shape} and {y.shape}")
-    if np.isnan(x).any() or np.isnan(y).any():
-        raise ValueError("missing values in a or b; remove incomplete pairs explicitly first")
+    if not np.isfinite(x).all() or not np.isfinite(y).all():
+        raise ValueError("a and b must contain finite values; remove incomplete pairs explicitly first")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must lie in (0, 1)")
+    if not 0.0 < loa < 1.0:
+        raise ValueError("loa must lie in (0, 1)")
     n = x.size
     if n < 3:
         raise ValueError("need at least 3 pairs")
