@@ -17,6 +17,7 @@ Prediction always uses the feasible set of the candidate set as built.
 from __future__ import annotations
 
 import warnings
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -40,7 +41,12 @@ def resolve_chosen(sets: Sequence[CandidateSet], chosen: ChosenLike = None) -> n
     for i, (cs, c) in enumerate(zip(sets, chosen)):
         if c is None:
             raise ValueError(f"case {cs.case_id}: no chosen (implanted) size")
-        idx = cs.index_of(c) if isinstance(c, DeviceSize) else int(c)
+        if isinstance(c, DeviceSize):
+            idx = cs.index_of(c)
+        elif isinstance(c, Integral) and not isinstance(c, bool):
+            idx = int(c)
+        else:
+            raise ValueError(f"case {cs.case_id}: chosen index must be an integer")
         if not 0 <= idx < cs.n_sizes:
             raise ValueError(f"case {cs.case_id}: chosen index {idx} out of range")
         out[i] = idx

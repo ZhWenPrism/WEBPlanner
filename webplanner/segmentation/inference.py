@@ -24,8 +24,8 @@ ModelOrModels = Union[nn.Module, Sequence[nn.Module]]
 def gaussian_importance_map(patch_size: Sequence[int], sigma_scale: float = 1.0 / 8, value_scale: float = 10.0) -> np.ndarray:
     """Gaussian centred on the patch with sigma ``sigma_scale * patch_size`` per axis (maximum ``value_scale``)."""
     axes = [((np.arange(n) - (n - 1) / 2.0) / max(n * sigma_scale, 1e-6)) ** 2 for n in patch_size]
-    g = np.exp(-0.5 * (axes[0][:, None, None] + axes[1][None, :, None] + axes[2][None, None, :]))
-    g = (g / g.max() * value_scale).astype(np.float32)
+    log_weights = -0.5 * (axes[0][:, None, None] + axes[1][None, :, None] + axes[2][None, None, :])
+    g = (np.exp(log_weights - log_weights.max()) * value_scale).astype(np.float32)
     return np.maximum(g, g[g > 0].min())
 
 

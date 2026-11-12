@@ -7,7 +7,7 @@
 [![Paper](https://img.shields.io/badge/Paper-under_review-F59E0B?style=flat-square)](#citation)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square)](pyproject.toml)
 [![Segmentation](https://img.shields.io/badge/Segmentation-nnU--Net_v2_%7C_PyTorch-EE4C2C?style=flat-square)](#anatomy-network)
-[![Tests](https://img.shields.io/badge/Tests-160_pytest-2563EB?style=flat-square)](#tests)
+[![Tests](https://github.com/ZhWenPrism/WEBPlanner/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ZhWenPrism/WEBPlanner/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/License-MIT-2A9D8F?style=flat-square)](LICENSE)
 
 <sub>3D-RA · neck landing zone · virtual deployment · conditional logit · external validation · reader study</sub>
@@ -163,16 +163,7 @@ WEBPlanner/
 
 ## Tests
 
-| Suite | Tests | Checks |
-|:---|:---:|:---|
-| `test_core.py` | 17 | catalogue and sizing chart, phantoms, patient-level splits and leakage guards, preprocessing, configuration |
-| `test_geometry.py` | 53 | neck plane, widths, height, neck, entry and take-off angles, solidity against analytic phantom truth |
-| `test_deployment.py` | 16 | equation (1), height cap, dome clearance, neck coverage, elongation fit, rehearsal rendering |
-| `test_ranking.py` | 14 | likelihood gradient, coefficient recovery, feasible set, grouped CV without patient overlap, LOCO, review flag |
-| `test_segmentation.py` | 15 | networks, deep supervision, Dice + CE, training and checkpoints, sliding window, post-processing |
-| `test_transforms_dataset.py` | 27 | augmentation consistency, patch sampling, nnU-Net export |
-| `test_evaluation.py` | 16 | statistics against statsmodels, scikit-learn and published examples |
-| `test_pipeline.py` | 2 | development, locking, tamper detection, external planning, leave-one-centre-out |
+Run `python -m pytest tests` from the repository root. The [unit tests](tests/unit) cover configuration, anatomy, segmentation, deployment, ranking, and evaluation. The [integration tests](tests/integration) exercise the development and evaluation workflows with synthetic data.
 
 PyTorch tests are skipped automatically where PyTorch is not installed.
 

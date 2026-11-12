@@ -105,7 +105,9 @@ def _merge(dc: Any, values: Dict[str, Any]) -> Any:
         if f.name not in values:
             continue
         cur, new = getattr(dc, f.name), values[f.name]
-        if is_dataclass(cur) and isinstance(new, dict):
+        if is_dataclass(cur):
+            if not isinstance(new, dict):
+                raise ValueError(f"configuration section {f.name!r} must be a mapping")
             _merge(cur, new)
         else:
             setattr(dc, f.name, new)
@@ -119,8 +121,14 @@ def _load_yaml_with_bases(path: Path, stack: tuple[Path, ...] = ()) -> Dict[str,
     path = path.resolve()
     if path in stack:
         raise ValueError("cyclic configuration defaults: " + " -> ".join(str(p) for p in (*stack, path)))
-    d = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    d = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if d is None:
+        return {}
+    if not isinstance(d, dict):
+        raise ValueError(f"{path}: configuration must be a mapping")
     bases = d.pop("defaults", [])
+    if not isinstance(bases, list) or any(not isinstance(b, str) or not b.strip() for b in bases):
+        raise ValueError(f"{path}: defaults must be a list of non-empty paths")
     merged: Dict[str, Any] = {}
     for b in bases:
         merged = _deep_update(merged, _load_yaml_with_bases((path.parent / b).resolve(), (*stack, path)))
