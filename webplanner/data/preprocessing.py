@@ -75,10 +75,16 @@ class Preprocessor:
             seed: int = 0) -> "Preprocessor":
         rng = np.random.default_rng(seed)
         samples = []
-        fg_iter = iter(foreground) if foreground is not None else None
-        for vol in volumes:
+        pairs = ((vol, None) for vol in volumes) if foreground is None else zip(volumes, foreground, strict=True)
+        for vol, mask in pairs:
             a = vol.array.astype(np.float32)
-            m = next(fg_iter) > 0 if fg_iter is not None else a > np.percentile(a, 90)
+            if foreground is None:
+                m = a > np.percentile(a, 90)
+            else:
+                mask = np.asarray(mask)
+                if mask.shape != a.shape:
+                    raise ValueError(f"foreground mask shape {mask.shape} does not match volume shape {a.shape}")
+                m = mask > 0
             v = a[m]
             if v.size > max_voxels:
                 v = rng.choice(v, max_voxels, replace=False)
@@ -86,6 +92,8 @@ class Preprocessor:
         if not samples:
             raise ValueError("no training volume")
         allv = np.concatenate(samples)
+        if not allv.size:
+            raise ValueError("no foreground voxels in training volumes")
         self.clip_low, self.clip_high = (float(x) for x in np.percentile(allv, [self.lower_percentile, self.upper_percentile]))
         c = np.clip(allv, self.clip_low, self.clip_high)
         self.mean, self.std = float(c.mean()), float(c.std() + 1e-8)
