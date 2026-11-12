@@ -17,7 +17,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 from scipy import ndimage as ndi
 
-from ..types import BACKGROUND, BRANCH, NECK, PARENT, SAC, Volume
+from ..types import BACKGROUND, BRANCH, LABELS, NECK, PARENT, SAC, Volume
 
 
 def _structure(connectivity: int) -> np.ndarray:
@@ -53,8 +53,17 @@ def postprocess(labels: Union[np.ndarray, Volume], spacing: Optional[Sequence[fl
     arr = np.asarray(vol.array if vol is not None else labels)
     if arr.ndim != 3:
         raise ValueError(f"expected a 3D label map, got shape {arr.shape}")
+    if arr.dtype.kind in "bui":
+        valid_labels = arr.min(initial=BACKGROUND) >= BACKGROUND and arr.max(initial=BACKGROUND) <= NECK
+    else:
+        valid_labels = arr.dtype.kind == "f" and np.isin(arr, tuple(LABELS)).all()
+    if not valid_labels:
+        raise ValueError("label map must contain only values 0 through 4")
     if spacing is None:
         spacing = vol.spacing if vol is not None else (1.0, 1.0, 1.0)
+    spacing = np.asarray(spacing, dtype=float)
+    if spacing.shape != (3,) or not np.isfinite(spacing).all() or np.any(spacing <= 0):
+        raise ValueError("spacing must contain three positive finite voxel sizes")
     out = arr.astype(np.uint8, copy=True)
     structure = _structure(connectivity)
     voxel_mm3 = float(np.prod(spacing))
