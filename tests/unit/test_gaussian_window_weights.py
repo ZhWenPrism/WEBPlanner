@@ -1,9 +1,11 @@
 import numpy as np
-
-from webplanner.segmentation.inference import gaussian_importance_map
+import pytest
 
 
 def test_narrow_gaussian_on_even_grid_has_finite_positive_weights():
+    pytest.importorskip("torch")
+    from webplanner.segmentation.inference import gaussian_importance_map
+
     with np.errstate(divide="raise", invalid="raise"):
         weights = gaussian_importance_map((8, 10, 12), sigma_scale=0.001)
     assert weights.shape == (8, 10, 12)
