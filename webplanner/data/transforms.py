@@ -267,10 +267,10 @@ class Gamma(Transform):
             x = -x
         mean, sd = x.mean(), x.std()
         g_lo, g_hi = self.gamma_range
-        if g_lo < 1.0 and rng.random() < 0.5:
-            g = rng.uniform(g_lo, 1.0)              # half of the draws below 1, as in nnU-Net
+        if g_lo < 1.0 <= g_hi:
+            g = rng.uniform(g_lo, 1.0) if rng.random() < 0.5 else rng.uniform(1.0, g_hi)
         else:
-            g = rng.uniform(max(g_lo, 1.0), g_hi)
+            g = rng.uniform(g_lo, g_hi)
         lo, hi = x.min(), x.max()
         span = max(hi - lo, 1e-7)
         x = np.power((x - lo) / span, g) * span + lo
