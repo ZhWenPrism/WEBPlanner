@@ -32,10 +32,11 @@ def _array(x: Union[np.ndarray, Volume]) -> np.ndarray:
 
 def _spacing(spacing: Spacing, ndim: int, *volumes: object) -> np.ndarray:
     if spacing is None:
-        for v in volumes:
-            if isinstance(v, Volume):
-                spacing = v.spacing
-                break
+        metadata = [v.spacing for v in volumes if isinstance(v, Volume)]
+        if metadata:
+            spacing = metadata[0]
+            if any(not np.allclose(spacing, other, rtol=1e-6, atol=1e-9) for other in metadata[1:]):
+                raise ValueError("prediction and reference voxel spacing differ")
     sp = np.ones(ndim) if spacing is None else np.asarray(spacing, float)
     if sp.shape != (ndim,) or not np.isfinite(sp).all() or np.any(sp <= 0):
         raise ValueError(f"spacing must have {ndim} positive values, got {spacing}")
@@ -93,16 +94,20 @@ def surface_distances(pred_mask: Union[np.ndarray, Volume], ref_mask: Union[np.n
     """Distances (mm) from each prediction surface voxel to the reference surface, and the reverse.
 
     Both arrays are empty when either mask is empty. The computation is restricted to the bounding box of the
-    union of the masks (plus one voxel), which gives the same distances as the full grid.
+    union of the masks (plus one voxel), which gives the same distances as the full grid. If spacing is inferred
+    from two Volume inputs, their voxel sizes must agree.
     """
     sp = _spacing(spacing, _array(pred_mask).ndim, pred_mask, ref_mask)
     p, r = _pair(pred_mask, ref_mask)
     if not p.any() or not r.any():
         return np.empty(0), np.empty(0)
-    idx = np.argwhere(p | r)
-    lo = np.maximum(idx.min(axis=0) - 1, 0)
-    hi = np.minimum(idx.max(axis=0) + 2, p.shape)
-    box = tuple(slice(a, b) for a, b in zip(lo, hi))
+    union = p | r
+    axes = tuple(range(union.ndim))
+    box = []
+    for axis, size in enumerate(union.shape):
+        occupied = np.flatnonzero(union.any(axis=tuple(a for a in axes if a != axis)))
+        box.append(slice(max(occupied[0] - 1, 0), min(occupied[-1] + 2, size)))
+    box = tuple(box)
     sp_, sr_ = surface(p[box]), surface(r[box])
     dt_r = ndi.distance_transform_edt(~sr_, sampling=sp)
     dt_p = ndi.distance_transform_edt(~sp_, sampling=sp)

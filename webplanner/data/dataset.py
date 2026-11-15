@@ -9,6 +9,7 @@ derived from ``(seed, i)`` only, so a sample does not depend on worker schedulin
 from __future__ import annotations
 
 from itertools import count
+from numbers import Integral
 from pathlib import Path
 from typing import Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -36,10 +37,10 @@ def _as_array(x: ArrayLike) -> np.ndarray:
 
 
 def _triple(size: Union[int, Sequence[int]]) -> Tuple[int, int, int]:
-    t = (int(size),) * 3 if np.isscalar(size) else tuple(int(s) for s in size)
-    if len(t) != 3:
-        raise ValueError(f"expected a 3D size, got {size}")
-    return t
+    t = (size,) * 3 if np.isscalar(size) else tuple(size)
+    if len(t) != 3 or any(isinstance(n, (bool, np.bool_)) or not isinstance(n, Integral) or n <= 0 for n in t):
+        raise ValueError(f"expected three positive integer dimensions, got {size}")
+    return tuple(map(int, t))
 
 
 def crop_with_padding(arr: np.ndarray, start: Sequence[int], size: Sequence[int], pad_value: float = 0) -> np.ndarray:
@@ -47,6 +48,12 @@ def crop_with_padding(arr: np.ndarray, start: Sequence[int], size: Sequence[int]
 
     Returns a view when the crop lies inside the array (callers must not modify it in place).
     """
+    if len(start) != arr.ndim or len(size) != arr.ndim:
+        raise ValueError("start and size must have one entry per array dimension")
+    if any(isinstance(v, (bool, np.bool_)) or not isinstance(v, Integral) for v in (*start, *size)):
+        raise ValueError("start and size must contain integers")
+    if any(n <= 0 for n in size):
+        raise ValueError("crop dimensions must be positive")
     if all(s >= 0 and s + n <= dim for s, n, dim in zip(start, size, arr.shape)):
         return arr[tuple(slice(int(s), int(s) + int(n)) for s, n in zip(start, size))]
     out = np.full(tuple(size), pad_value, dtype=arr.dtype)
@@ -118,7 +125,19 @@ class PatchDataset(_BaseDataset):
                 raise ValueError(f"case {i}: image {img.shape} and label {lab.shape} differ")
             if normalize is not None:
                 img = np.asarray(normalize(img), dtype=np.float32)
-            lab = lab.astype(np.uint8 if lab.max(initial=0) <= 255 else np.int64, copy=False)
+            if lab.dtype.kind in "bui":
+                max_label = int(lab.max(initial=0))
+                valid = lab.min(initial=0) >= 0 and max_label <= np.iinfo(np.int64).max
+            elif lab.dtype.kind == "f":
+                largest = lab.max(initial=0)
+                valid = (np.isfinite(lab).all() and lab.min(initial=0) >= 0
+                         and largest < 2 ** 63 and np.equal(lab, np.floor(lab)).all())
+                max_label = int(largest) if valid else 0
+            else:
+                valid = False
+            if not valid:
+                raise ValueError(f"case {i}: labels must contain finite non-negative integer class IDs")
+            lab = lab.astype(np.uint8 if max_label <= 255 else np.int64, copy=False)
             locs = {}
             for c in self.foreground_classes:
                 idx = np.argwhere(lab == c)
@@ -187,8 +206,10 @@ class InfiniteSampler:
     """
 
     def __init__(self, n: int, shuffle: bool = True, seed: int = 0, start: int = 0, unique: bool = True) -> None:
-        if n <= 0:
-            raise ValueError("n must be positive")
+        if isinstance(n, (bool, np.bool_)) or not isinstance(n, Integral) or n <= 0:
+            raise ValueError("n must be a positive integer")
+        if isinstance(start, (bool, np.bool_)) or not isinstance(start, Integral) or start < 0:
+            raise ValueError("start must be a non-negative integer")
         self.n, self.shuffle, self.seed, self.start, self.unique = int(n), shuffle, int(seed), int(start), unique
 
     def _order(self, rnd: int) -> np.ndarray:

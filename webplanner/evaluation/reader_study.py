@@ -70,8 +70,9 @@ class ReaderStudy:
         self.alpha = alpha
         d = reads.copy().reset_index(drop=True)
         for c in ("case_id", "reader_id"):
-            if d[c].isna().any():
-                raise ValueError(f"{int(d[c].isna().sum())} rows have a missing {c}")
+            missing_id = d[c].isna() | d[c].astype("string").str.strip().eq("").fillna(False)
+            if missing_id.any():
+                raise ValueError(f"{int(missing_id.sum())} rows have a missing {c}")
         for c, allowed in (("session", SESSIONS), ("experience", EXPERIENCE_LEVELS)):
             d[c] = d[c].astype(str).str.strip().str.lower()
             bad = sorted(set(d[c]) - set(allowed))
@@ -92,8 +93,8 @@ class ReaderStudy:
         for c in NUMERIC_COLUMNS:
             if c in d.columns:
                 v = pd.to_numeric(d[c], errors="coerce")
-                if (v.isna() & d[c].notna()).any():
-                    raise ValueError(f"column {c!r} must be numeric")
+                if (v.isna() & d[c].notna()).any() or np.isinf(v).any():
+                    raise ValueError(f"column {c!r} must contain finite numeric values or be missing")
                 d[c] = v.astype(float)
         if "ai_top1_correct" in d.columns:
             n_ai = d.groupby("case_id")["ai_top1_correct"].nunique(dropna=True)

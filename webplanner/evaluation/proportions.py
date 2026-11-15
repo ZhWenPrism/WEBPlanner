@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from numbers import Integral
 from typing import Callable, NamedTuple, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -231,8 +232,12 @@ def paired_bootstrap_diff(x_un: ArrayLike, x_ai: ArrayLike, groups: Optional[Arr
         raise ValueError(f"x_un and x_ai must be paired 1D arrays, got {u.shape} and {a.shape}")
     if u.size == 0:
         raise ValueError("no paired observations")
-    if n_boot < 1:
-        raise ValueError("n_boot must be >= 1")
+    if not np.isfinite(u).all() or not np.isfinite(a).all():
+        raise ValueError("paired observations must be finite")
+    if isinstance(n_boot, (bool, np.bool_)) or not isinstance(n_boot, Integral) or n_boot < 1:
+        raise ValueError("n_boot must be a positive integer")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must lie in (0, 1)")
     n = u.size
     codes, n_units = cluster_codes(groups, n) if groups is not None else (np.arange(n), n)
     estimate = float(stat(a) - stat(u))
