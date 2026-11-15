@@ -125,7 +125,19 @@ class PatchDataset(_BaseDataset):
                 raise ValueError(f"case {i}: image {img.shape} and label {lab.shape} differ")
             if normalize is not None:
                 img = np.asarray(normalize(img), dtype=np.float32)
-            lab = lab.astype(np.uint8 if lab.max(initial=0) <= 255 else np.int64, copy=False)
+            if lab.dtype.kind in "bui":
+                max_label = int(lab.max(initial=0))
+                valid = lab.min(initial=0) >= 0 and max_label <= np.iinfo(np.int64).max
+            elif lab.dtype.kind == "f":
+                largest = lab.max(initial=0)
+                valid = (np.isfinite(lab).all() and lab.min(initial=0) >= 0
+                         and largest < 2 ** 63 and np.equal(lab, np.floor(lab)).all())
+                max_label = int(largest) if valid else 0
+            else:
+                valid = False
+            if not valid:
+                raise ValueError(f"case {i}: labels must contain finite non-negative integer class IDs")
+            lab = lab.astype(np.uint8 if max_label <= 255 else np.int64, copy=False)
             locs = {}
             for c in self.foreground_classes:
                 idx = np.argwhere(lab == c)
