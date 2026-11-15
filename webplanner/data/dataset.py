@@ -206,8 +206,10 @@ class InfiniteSampler:
     """
 
     def __init__(self, n: int, shuffle: bool = True, seed: int = 0, start: int = 0, unique: bool = True) -> None:
-        if n <= 0:
-            raise ValueError("n must be positive")
+        if isinstance(n, (bool, np.bool_)) or not isinstance(n, Integral) or n <= 0:
+            raise ValueError("n must be a positive integer")
+        if isinstance(start, (bool, np.bool_)) or not isinstance(start, Integral) or start < 0:
+            raise ValueError("start must be a non-negative integer")
         self.n, self.shuffle, self.seed, self.start, self.unique = int(n), shuffle, int(seed), int(start), unique
 
     def _order(self, rnd: int) -> np.ndarray:
