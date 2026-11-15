@@ -101,10 +101,13 @@ def surface_distances(pred_mask: Union[np.ndarray, Volume], ref_mask: Union[np.n
     p, r = _pair(pred_mask, ref_mask)
     if not p.any() or not r.any():
         return np.empty(0), np.empty(0)
-    idx = np.argwhere(p | r)
-    lo = np.maximum(idx.min(axis=0) - 1, 0)
-    hi = np.minimum(idx.max(axis=0) + 2, p.shape)
-    box = tuple(slice(a, b) for a, b in zip(lo, hi))
+    union = p | r
+    axes = tuple(range(union.ndim))
+    box = []
+    for axis, size in enumerate(union.shape):
+        occupied = np.flatnonzero(union.any(axis=tuple(a for a in axes if a != axis)))
+        box.append(slice(max(occupied[0] - 1, 0), min(occupied[-1] + 2, size)))
+    box = tuple(box)
     sp_, sr_ = surface(p[box]), surface(r[box])
     dt_r = ndi.distance_transform_edt(~sr_, sampling=sp)
     dt_p = ndi.distance_transform_edt(~sp_, sampling=sp)
