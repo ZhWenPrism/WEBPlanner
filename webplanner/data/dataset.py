@@ -9,6 +9,7 @@ derived from ``(seed, i)`` only, so a sample does not depend on worker schedulin
 from __future__ import annotations
 
 from itertools import count
+from numbers import Integral
 from pathlib import Path
 from typing import Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -36,10 +37,10 @@ def _as_array(x: ArrayLike) -> np.ndarray:
 
 
 def _triple(size: Union[int, Sequence[int]]) -> Tuple[int, int, int]:
-    t = (int(size),) * 3 if np.isscalar(size) else tuple(int(s) for s in size)
-    if len(t) != 3:
-        raise ValueError(f"expected a 3D size, got {size}")
-    return t
+    t = (size,) * 3 if np.isscalar(size) else tuple(size)
+    if len(t) != 3 or any(isinstance(n, (bool, np.bool_)) or not isinstance(n, Integral) or n <= 0 for n in t):
+        raise ValueError(f"expected three positive integer dimensions, got {size}")
+    return tuple(map(int, t))
 
 
 def crop_with_padding(arr: np.ndarray, start: Sequence[int], size: Sequence[int], pad_value: float = 0) -> np.ndarray:
@@ -47,6 +48,12 @@ def crop_with_padding(arr: np.ndarray, start: Sequence[int], size: Sequence[int]
 
     Returns a view when the crop lies inside the array (callers must not modify it in place).
     """
+    if len(start) != arr.ndim or len(size) != arr.ndim:
+        raise ValueError("start and size must have one entry per array dimension")
+    if any(isinstance(v, (bool, np.bool_)) or not isinstance(v, Integral) for v in (*start, *size)):
+        raise ValueError("start and size must contain integers")
+    if any(n <= 0 for n in size):
+        raise ValueError("crop dimensions must be positive")
     if all(s >= 0 and s + n <= dim for s, n, dim in zip(start, size, arr.shape)):
         return arr[tuple(slice(int(s), int(s) + int(n)) for s, n in zip(start, size))]
     out = np.full(tuple(size), pad_value, dtype=arr.dtype)
