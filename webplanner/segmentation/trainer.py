@@ -15,6 +15,7 @@ import math
 import os
 import time
 from dataclasses import asdict, dataclass, field
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -78,6 +79,12 @@ class TrainerConfig:
     resume: bool = False
     save_every: int = 1
     verbose: bool = True
+
+    def __post_init__(self) -> None:
+        for name in ("epochs", "iterations_per_epoch", "val_iterations", "batch_size", "val_every", "save_every"):
+            value = getattr(self, name)
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Integral) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -300,6 +307,7 @@ class SegmentationTrainer:
             losses = [self.train_step(*next(loader)) for _ in range(cfg.iterations_per_epoch)]
             self.epoch = epoch + 1
             row: Dict[str, float] = {"epoch": epoch, "lr": lr, "train_loss": float(np.mean(losses))}
+            selected_best = False
             if val_ds is not None and ((epoch + 1) % cfg.val_every == 0 or epoch == cfg.epochs - 1):
                 val_loss, dice = self.validate(val_ds)
                 mean = float(np.nanmean(dice)) if np.isfinite(dice).any() else float("nan")
@@ -310,9 +318,11 @@ class SegmentationTrainer:
                 row.update({f"dice_{n}": float(d) for n, d in zip(names, dice)})
                 if self.ema is not None and self.ema > self.best_ema:
                     self.best_ema, self.best_epoch = self.ema, epoch
-                    self.save_checkpoint(best)
+                    selected_best = True
             row["epoch_seconds"] = time.time() - t0
             self.history.append(row)
+            if selected_best:
+                self.save_checkpoint(best)
             if self.epoch % cfg.save_every == 0 or self.epoch == cfg.epochs:
                 self.save_checkpoint(last)
             self._log_row(row)
