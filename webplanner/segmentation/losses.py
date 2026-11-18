@@ -17,6 +17,11 @@ def _target_index(target: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
         if target.shape[1] != 1:
             raise ValueError("target must hold class indices, not one-hot channels")
         target = target[:, 0]
+    expected = (logits.shape[0],) + tuple(logits.shape[2:])
+    if (tuple(target.shape) != expected or not torch.isfinite(target).all()
+            or (target < 0).any() or (target >= logits.shape[1]).any()
+            or (target != target.long()).any()):
+        raise ValueError("target must contain aligned integer class indices in the logits class range")
     return target.long()
 
 
