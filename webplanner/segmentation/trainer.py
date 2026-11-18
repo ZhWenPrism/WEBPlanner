@@ -15,6 +15,7 @@ import math
 import os
 import time
 from dataclasses import asdict, dataclass, field
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -78,6 +79,12 @@ class TrainerConfig:
     resume: bool = False
     save_every: int = 1
     verbose: bool = True
+
+    def __post_init__(self) -> None:
+        for name in ("epochs", "iterations_per_epoch", "val_iterations", "batch_size", "val_every", "save_every"):
+            value = getattr(self, name)
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Integral) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
