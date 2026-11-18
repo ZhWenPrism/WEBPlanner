@@ -5,6 +5,7 @@ The Dice terms are computed in float32 even under mixed precision.
 """
 from __future__ import annotations
 
+from math import isfinite
 from typing import List, Optional, Sequence, Union
 
 import torch
@@ -95,6 +96,10 @@ class DeepSupervisionLoss(nn.Module):
         super().__init__()
         self.loss = loss
         self.weights = None if weights is None else [float(w) for w in weights]
+        if self.weights is not None and (
+                not self.weights or any(not isfinite(w) or w < 0 for w in self.weights)
+                or not any(w > 0 for w in self.weights)):
+            raise ValueError("deep supervision weights must be finite non-negative values with a positive weight")
 
     @staticmethod
     def nnunet_weights(n: int) -> List[float]:
@@ -107,8 +112,10 @@ class DeepSupervisionLoss(nn.Module):
     def forward(self, outputs: Union[torch.Tensor, Sequence[torch.Tensor]], target: torch.Tensor) -> torch.Tensor:
         if isinstance(outputs, torch.Tensor):
             return self.loss(outputs, target)
+        if not outputs:
+            raise ValueError("deep supervision requires at least one output")
         weights = self.weights if self.weights is not None else self.nnunet_weights(len(outputs))
-        if len(weights) < len(outputs):
+        if len(weights) != len(outputs):
             raise ValueError(f"{len(outputs)} outputs but {len(weights)} weights")
         target = _target_index(target, outputs[0])
         total = outputs[0].new_zeros((), dtype=torch.float32)
