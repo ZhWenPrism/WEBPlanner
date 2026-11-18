@@ -307,6 +307,7 @@ class SegmentationTrainer:
             losses = [self.train_step(*next(loader)) for _ in range(cfg.iterations_per_epoch)]
             self.epoch = epoch + 1
             row: Dict[str, float] = {"epoch": epoch, "lr": lr, "train_loss": float(np.mean(losses))}
+            selected_best = False
             if val_ds is not None and ((epoch + 1) % cfg.val_every == 0 or epoch == cfg.epochs - 1):
                 val_loss, dice = self.validate(val_ds)
                 mean = float(np.nanmean(dice)) if np.isfinite(dice).any() else float("nan")
@@ -317,9 +318,11 @@ class SegmentationTrainer:
                 row.update({f"dice_{n}": float(d) for n, d in zip(names, dice)})
                 if self.ema is not None and self.ema > self.best_ema:
                     self.best_ema, self.best_epoch = self.ema, epoch
-                    self.save_checkpoint(best)
+                    selected_best = True
             row["epoch_seconds"] = time.time() - t0
             self.history.append(row)
+            if selected_best:
+                self.save_checkpoint(best)
             if self.epoch % cfg.save_every == 0 or self.epoch == cfg.epochs:
                 self.save_checkpoint(last)
             self._log_row(row)
