@@ -9,6 +9,7 @@ from typing import Any, Union
 import numpy as np
 
 from ..types import Volume
+from .atomic import write_text_atomic
 
 PathLike = Union[str, Path]
 
@@ -81,7 +82,7 @@ class _Encoder(json.JSONEncoder):
 def write_json(obj: Any, path: PathLike) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, cls=_Encoder, ensure_ascii=False), encoding="utf-8")
+    write_text_atomic(path, json.dumps(obj, indent=2, cls=_Encoder, ensure_ascii=False))
     return path
 
 
