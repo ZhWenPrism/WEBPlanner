@@ -49,6 +49,7 @@ def list_series(folder: Union[str, Path]) -> List[SeriesInfo]:
     """Technical summary of every series in a folder (recursive)."""
     groups: Dict[str, List[Path]] = defaultdict(list)
     first: Dict[str, object] = {}
+    frames: Dict[str, int] = defaultdict(int)
     for p in sorted(Path(folder).rglob("*")):
         if not p.is_file():
             continue
@@ -59,12 +60,13 @@ def list_series(folder: Union[str, Path]) -> List[SeriesInfo]:
         uid = _image_series_uid(ds)
         if uid is not None:
             groups[uid].append(p)
+            frames[uid] += int(getattr(ds, "NumberOfFrames", 1) or 1)
             first.setdefault(uid, ds)
     out = []
     for uid, files in groups.items():
         ds = first[uid]
         out.append(SeriesInfo(uid, str(getattr(ds, "SeriesDescription", "")), str(getattr(ds, "Modality", "")),
-                              str(getattr(ds, "ManufacturerModelName", "")), len(files), int(getattr(ds, "NumberOfFrames", 1) or 1),
+                              str(getattr(ds, "ManufacturerModelName", "")), len(files), frames[uid],
                               int(getattr(ds, "Rows", 0)), int(getattr(ds, "Columns", 0))))
     return out
 

@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import yaml
 
+from .utils.atomic import write_text_atomic
+
 
 @dataclass
 class DataConfig:
@@ -96,7 +98,7 @@ class Config:
     def save(self, path: Union[str, Path]) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(yaml.safe_dump(self.to_dict(), sort_keys=False, allow_unicode=True), encoding="utf-8")
+        write_text_atomic(path, yaml.safe_dump(self.to_dict(), sort_keys=False, allow_unicode=True))
         return path
 
 
