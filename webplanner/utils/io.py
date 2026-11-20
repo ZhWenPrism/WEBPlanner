@@ -9,7 +9,7 @@ from typing import Any, Union
 import numpy as np
 
 from ..types import Volume
-from .atomic import write_text_atomic
+from .atomic import staged_path, write_text_atomic
 
 PathLike = Union[str, Path]
 
@@ -44,8 +44,9 @@ def save_volume(vol: Volume, path: PathLike) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".npz":
-        np.savez_compressed(path, array=vol.array, spacing=np.asarray(vol.spacing),
-                            origin=np.asarray(vol.origin), direction=np.asarray(vol.direction))
+        with staged_path(path) as temporary:
+            np.savez_compressed(temporary, array=vol.array, spacing=np.asarray(vol.spacing),
+                                origin=np.asarray(vol.origin), direction=np.asarray(vol.direction))
         return path
     try:
         import SimpleITK as sitk
