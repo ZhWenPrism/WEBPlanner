@@ -1,6 +1,8 @@
 """Cohort manifest (``data/cohort.csv``) <-> :class:`CaseRecord` (see docs/DATA_INTERFACE.md)."""
 from __future__ import annotations
 
+import csv
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
 
@@ -34,7 +36,11 @@ def _opt_str(v) -> Optional[str]:
 
 def read_cohort(path: Union[str, Path]) -> List[CaseRecord]:
     path = Path(path)
-    columns = pd.read_csv(path, nrows=0).columns
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        columns = next(csv.reader(handle), [])
+    duplicates = [name for name, count in Counter(columns).items() if count > 1]
+    if duplicates:
+        raise ValueError(f"{path}: duplicated manifest columns {duplicates}")
     missing = [c for c in REQUIRED if c not in columns]
     if missing:
         raise ValueError(f"{path}: missing columns {missing}")
