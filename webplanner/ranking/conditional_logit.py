@@ -97,10 +97,16 @@ class ConditionalLogit:
                  infeasible_chosen: str = "add", warm_start: bool = False) -> None:
         if infeasible_chosen not in ("add", "raise"):
             raise ValueError("infeasible_chosen must be 'add' or 'raise'")
+        if isinstance(max_iter, (bool, np.bool_)) or not isinstance(max_iter, Integral) or max_iter < 1:
+            raise ValueError("max_iter must be a positive integer")
         self.l2 = float(l2)
+        if not np.isfinite(self.l2) or self.l2 < 0:
+            raise ValueError("l2 must be finite and non-negative")
         self.standardize = bool(standardize)
         self.max_iter = int(max_iter)
         self.tol = float(tol)
+        if not np.isfinite(self.tol) or self.tol <= 0:
+            raise ValueError("tol must be finite and positive")
         self.infeasible_chosen = infeasible_chosen
         self.warm_start = bool(warm_start)
         self.names_: Optional[List[str]] = None

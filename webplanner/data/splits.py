@@ -14,6 +14,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 import numpy as np
 
 from ..types import CaseRecord
+from ..utils.io import write_json
 
 
 @dataclass
@@ -35,10 +36,7 @@ class SplitManifest:
     seed: int = 0
 
     def to_json(self, path: Union[str, Path]) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
-        return path
+        return write_json(asdict(self), path)
 
     @classmethod
     def from_json(cls, path: Union[str, Path]) -> "SplitManifest":
