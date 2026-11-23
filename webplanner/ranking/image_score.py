@@ -178,6 +178,8 @@ class SacImageScorer:
 
     def _y(self, y: Sequence[float]) -> np.ndarray:
         y = np.asarray(y, float)
+        if y.ndim != 1 or not y.size or not np.isfinite(y).all():
+            raise ValueError("image-score targets must be a non-empty finite vector")
         return (y > 0).astype(float) if self.target == "oversized" else y
 
     # ---------------------------------------------------------------- fit / predict
@@ -221,6 +223,9 @@ class SacImageScorer:
         from .model_selection import group_kfold
 
         F, y = np.asarray(F, float), np.asarray(y, float)
+        self._y(y)
+        if F.ndim < 1 or len(F) != len(y) or len(groups) != len(y):
+            raise ValueError("F, y and groups must have aligned rows")
         out = np.full(len(F), np.nan)
         for tr, te in group_kfold(groups, n_splits, self.seed if seed is None else seed):
             clone = SacImageScorer(self.backend, self.target, self.alpha, self.crop_shape, self.crop_mm, self.epochs,
