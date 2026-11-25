@@ -14,6 +14,7 @@ write it there as well, or copy it after ``nnUNetv2_plan_and_preprocess``. Folds
 """
 from __future__ import annotations
 
+from numbers import Integral
 from pathlib import Path, PureWindowsPath
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -30,6 +31,8 @@ def _check_folds(folds: Sequence[Dict[str, Sequence[str]]], case_ids: Sequence[s
     out = []
     for i, fold in enumerate(folds):
         train, val = [str(c) for c in fold["train"]], [str(c) for c in fold["val"]]
+        if len(set(train)) != len(train) or len(set(val)) != len(val):
+            raise ValueError(f"fold {i}: duplicate case ids within train or val")
         unknown = (set(train) | set(val)) - known
         if unknown:
             raise ValueError(f"fold {i}: unknown case ids {sorted(unknown)[:5]}")
@@ -56,7 +59,7 @@ def export_nnunet_dataset(cases: Sequence[Tuple[str, Volume, Volume]], out_dir: 
     Images are stored as float32, labels as uint8 with the WEBPlanner label map; image and label must share shape
     and physical grid. ``folds`` is a list of ``{"train": [...], "val": [...]}`` with case ids.
     """
-    if not 1 <= int(dataset_id) <= 999:
+    if isinstance(dataset_id, bool) or not isinstance(dataset_id, Integral) or not 1 <= dataset_id <= 999:
         raise ValueError("nnU-Net dataset ids are 1 to 999")
     _filename_part(dataset_name, "dataset_name")
     if not file_ending.startswith("."):
