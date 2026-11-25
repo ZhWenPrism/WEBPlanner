@@ -97,9 +97,7 @@ class Catalogue:
         return float(self.widths[i])
 
     def nearest_height(self, width: float, height: float) -> float:
-        hs = np.asarray(self.heights[float(width)])
-        # ties go to the lower height (WEB is undersized in height)
-        return float(hs[np.argmin(np.abs(hs - height) + 1e-3 * (hs > height))])
+        return float(min(self.heights[float(width)], key=lambda h: (abs(h - height), h)))
 
     def microcatheter_for(self, width: float) -> Optional[str]:
         for wmax, name in self.microcatheter:
