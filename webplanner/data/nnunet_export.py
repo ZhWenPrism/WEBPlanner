@@ -31,6 +31,8 @@ def _check_folds(folds: Sequence[Dict[str, Sequence[str]]], case_ids: Sequence[s
     out = []
     for i, fold in enumerate(folds):
         train, val = [str(c) for c in fold["train"]], [str(c) for c in fold["val"]]
+        if len(set(train)) != len(train) or len(set(val)) != len(val):
+            raise ValueError(f"fold {i}: duplicate case ids within train or val")
         unknown = (set(train) | set(val)) - known
         if unknown:
             raise ValueError(f"fold {i}: unknown case ids {sorted(unknown)[:5]}")
