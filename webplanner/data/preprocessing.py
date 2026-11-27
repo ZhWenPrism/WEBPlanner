@@ -21,8 +21,9 @@ def resample_isotropic(vol: Volume, spacing: float, order: int = 1) -> Volume:
     zoom = np.asarray(vol.spacing) / spacing
     if np.allclose(zoom, 1.0):
         return vol
-    arr = ndi.zoom(vol.array, zoom, order=order, mode="nearest", prefilter=order > 1)
-    return Volume(arr.astype(vol.array.dtype, copy=False), (spacing, spacing, spacing), vol.origin, vol.direction)
+    source = vol.array.astype(np.float32) if order > 0 and vol.array.dtype.kind in "biu" else vol.array
+    arr = ndi.zoom(source, zoom, order=order, mode="nearest", prefilter=order > 1)
+    return Volume(arr, (spacing, spacing, spacing), vol.origin, vol.direction)
 
 
 def crop_cube(vol: Volume, center_mm: Sequence[float], size_mm: float = 40.0, fill: Optional[float] = None) -> Tuple[Volume, np.ndarray]:
