@@ -5,7 +5,6 @@ applied unchanged to validation, external and clinical-evaluation cases.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Tuple, Union
@@ -14,6 +13,7 @@ import numpy as np
 from scipy import ndimage as ndi
 
 from ..types import Volume
+from ..utils.io import read_json, write_json
 
 
 def resample_isotropic(vol: Volume, spacing: float, order: int = 1) -> Volume:
@@ -131,14 +131,11 @@ class Preprocessor:
         return resample_isotropic(lab, self.spacing, order=0)
 
     def save(self, path: Union[str, Path]) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
-        return path
+        return write_json(asdict(self), path)
 
     @classmethod
     def load(cls, path: Union[str, Path]) -> "Preprocessor":
-        return cls(**json.loads(Path(path).read_text(encoding="utf-8")))
+        return cls(**read_json(path))
 
 
 def aneurysm_seed(vol: Volume, threshold_percentile: float = 99.0) -> np.ndarray:
