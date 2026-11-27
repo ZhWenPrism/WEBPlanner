@@ -97,6 +97,8 @@ class Preprocessor:
         pairs = ((vol, None) for vol in volumes) if foreground is None else zip(volumes, foreground, strict=True)
         for vol, mask in pairs:
             a = vol.array.astype(np.float32)
+            if not np.isfinite(a).all():
+                raise ValueError("training volumes must contain finite voxels")
             if foreground is None:
                 m = a > np.percentile(a, 90)
             else:
