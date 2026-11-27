@@ -121,10 +121,16 @@ class PatchDataset(_BaseDataset):
         for i, (img, lab) in enumerate(cases):
             img = _as_array(img).astype(np.float32, copy=False)
             lab = _as_array(lab)
+            if img.ndim != 3 or lab.ndim != 3 or not img.size or not lab.size:
+                raise ValueError(f"case {i}: image and label must be non-empty 3D arrays")
             if img.shape != lab.shape:
                 raise ValueError(f"case {i}: image {img.shape} and label {lab.shape} differ")
             if normalize is not None:
                 img = np.asarray(normalize(img), dtype=np.float32)
+                if img.shape != lab.shape:
+                    raise ValueError(f"case {i}: normalization must preserve the image grid")
+            if not np.isfinite(img).all():
+                raise ValueError(f"case {i}: image voxels must be finite after normalization")
             if lab.dtype.kind in "bui":
                 max_label = int(lab.max(initial=0))
                 valid = lab.min(initial=0) >= 0 and max_label <= np.iinfo(np.int64).max
