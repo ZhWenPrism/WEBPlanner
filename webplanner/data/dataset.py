@@ -107,10 +107,19 @@ class PatchDataset(_BaseDataset):
                  max_locations: int = 10000, seed: int = 0) -> None:
         if len(cases) == 0:
             raise ValueError("PatchDataset needs at least one case")
+        for name, value in (("max_locations", max_locations), ("samples_per_epoch", samples_per_epoch)):
+            if value is None and name == "samples_per_epoch":
+                continue
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Integral) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, Integral) or seed < 0:
+            raise ValueError("seed must be a non-negative integer")
         self.patch_size = _triple(patch_size)
         self.sample_size = _triple(sample_size) if sample_size is not None else self.patch_size
         self.transform = transform
         self.foreground_oversample = float(foreground_oversample)
+        if not np.isfinite(self.foreground_oversample) or not 0 <= self.foreground_oversample <= 1:
+            raise ValueError("foreground_oversample must be finite and in [0, 1]")
         self.foreground_classes = tuple(int(c) for c in foreground_classes)
         self.seed = int(seed)
         self.images: List[np.ndarray] = []
@@ -155,7 +164,7 @@ class PatchDataset(_BaseDataset):
             self.labels.append(lab)
             self.locations.append(locs)
             self.pad_values.append(float(img.min()) if pad_value is None else float(pad_value))
-        self.samples_per_epoch = int(samples_per_epoch) if samples_per_epoch else len(self.images)
+        self.samples_per_epoch = int(samples_per_epoch) if samples_per_epoch is not None else len(self.images)
 
     @property
     def n_cases(self) -> int:
