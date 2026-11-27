@@ -1,6 +1,7 @@
 """Reading and writing volumes (NIfTI through SimpleITK or nibabel, NumPy archives as a fallback) and JSON records."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 import dataclasses
 import json
 from pathlib import Path
@@ -48,22 +49,24 @@ def save_volume(vol: Volume, path: PathLike) -> Path:
             np.savez_compressed(temporary, array=vol.array, spacing=np.asarray(vol.spacing),
                                 origin=np.asarray(vol.origin), direction=np.asarray(vol.direction))
         return path
-    try:
-        import SimpleITK as sitk
+    atomic = path.name.lower().endswith((".nii", ".nii.gz"))
+    with (staged_path(path) if atomic else nullcontext(path)) as destination:
+        try:
+            import SimpleITK as sitk
 
-        img = sitk.GetImageFromArray(vol.array)
-        img.SetSpacing(tuple(reversed(vol.spacing)))
-        img.SetOrigin(tuple(reversed(vol.origin)))
-        img.SetDirection(tuple(vol.direction))
-        sitk.WriteImage(img, str(path), useCompression=True)
-    except ImportError:
-        import nibabel as nib
+            img = sitk.GetImageFromArray(vol.array)
+            img.SetSpacing(tuple(reversed(vol.spacing)))
+            img.SetOrigin(tuple(reversed(vol.origin)))
+            img.SetDirection(tuple(vol.direction))
+            sitk.WriteImage(img, str(destination), useCompression=True)
+        except ImportError:
+            import nibabel as nib
 
-        lps_affine = np.eye(4)
-        lps_affine[:3, :3] = np.asarray(vol.direction).reshape(3, 3) @ np.diag(list(reversed(vol.spacing)))
-        lps_affine[:3, 3] = tuple(reversed(vol.origin))
-        aff = np.diag([-1.0, -1.0, 1.0, 1.0]) @ lps_affine
-        nib.save(nib.Nifti1Image(vol.array.transpose(2, 1, 0), aff), str(path))
+            lps_affine = np.eye(4)
+            lps_affine[:3, :3] = np.asarray(vol.direction).reshape(3, 3) @ np.diag(list(reversed(vol.spacing)))
+            lps_affine[:3, 3] = tuple(reversed(vol.origin))
+            aff = np.diag([-1.0, -1.0, 1.0, 1.0]) @ lps_affine
+            nib.save(nib.Nifti1Image(vol.array.transpose(2, 1, 0), aff), str(destination))
     return path
 
 
