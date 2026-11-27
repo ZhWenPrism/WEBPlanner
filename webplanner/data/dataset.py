@@ -107,10 +107,19 @@ class PatchDataset(_BaseDataset):
                  max_locations: int = 10000, seed: int = 0) -> None:
         if len(cases) == 0:
             raise ValueError("PatchDataset needs at least one case")
+        for name, value in (("max_locations", max_locations), ("samples_per_epoch", samples_per_epoch)):
+            if value is None and name == "samples_per_epoch":
+                continue
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Integral) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, Integral) or seed < 0:
+            raise ValueError("seed must be a non-negative integer")
         self.patch_size = _triple(patch_size)
         self.sample_size = _triple(sample_size) if sample_size is not None else self.patch_size
         self.transform = transform
         self.foreground_oversample = float(foreground_oversample)
+        if not np.isfinite(self.foreground_oversample) or not 0 <= self.foreground_oversample <= 1:
+            raise ValueError("foreground_oversample must be finite and in [0, 1]")
         self.foreground_classes = tuple(int(c) for c in foreground_classes)
         self.seed = int(seed)
         self.images: List[np.ndarray] = []
@@ -121,10 +130,16 @@ class PatchDataset(_BaseDataset):
         for i, (img, lab) in enumerate(cases):
             img = _as_array(img).astype(np.float32, copy=False)
             lab = _as_array(lab)
+            if img.ndim != 3 or lab.ndim != 3 or not img.size or not lab.size:
+                raise ValueError(f"case {i}: image and label must be non-empty 3D arrays")
             if img.shape != lab.shape:
                 raise ValueError(f"case {i}: image {img.shape} and label {lab.shape} differ")
             if normalize is not None:
                 img = np.asarray(normalize(img), dtype=np.float32)
+                if img.shape != lab.shape:
+                    raise ValueError(f"case {i}: normalization must preserve the image grid")
+            if not np.isfinite(img).all():
+                raise ValueError(f"case {i}: image voxels must be finite after normalization")
             if lab.dtype.kind in "bui":
                 max_label = int(lab.max(initial=0))
                 valid = lab.min(initial=0) >= 0 and max_label <= np.iinfo(np.int64).max
@@ -149,7 +164,7 @@ class PatchDataset(_BaseDataset):
             self.labels.append(lab)
             self.locations.append(locs)
             self.pad_values.append(float(img.min()) if pad_value is None else float(pad_value))
-        self.samples_per_epoch = int(samples_per_epoch) if samples_per_epoch else len(self.images)
+        self.samples_per_epoch = int(samples_per_epoch) if samples_per_epoch is not None else len(self.images)
 
     @property
     def n_cases(self) -> int:

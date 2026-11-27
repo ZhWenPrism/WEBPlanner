@@ -5,7 +5,6 @@ applied unchanged to validation, external and clinical-evaluation cases.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, Tuple, Union
@@ -14,6 +13,7 @@ import numpy as np
 from scipy import ndimage as ndi
 
 from ..types import Volume
+from ..utils.io import read_json, write_json
 
 
 def resample_isotropic(vol: Volume, spacing: float, order: int = 1) -> Volume:
@@ -21,8 +21,9 @@ def resample_isotropic(vol: Volume, spacing: float, order: int = 1) -> Volume:
     zoom = np.asarray(vol.spacing) / spacing
     if np.allclose(zoom, 1.0):
         return vol
-    arr = ndi.zoom(vol.array, zoom, order=order, mode="nearest", prefilter=order > 1)
-    return Volume(arr.astype(vol.array.dtype, copy=False), (spacing, spacing, spacing), vol.origin, vol.direction)
+    source = vol.array.astype(np.float32) if order > 0 and vol.array.dtype.kind in "biu" else vol.array
+    arr = ndi.zoom(source, zoom, order=order, mode="nearest", prefilter=order > 1)
+    return Volume(arr, (spacing, spacing, spacing), vol.origin, vol.direction)
 
 
 def crop_cube(vol: Volume, center_mm: Sequence[float], size_mm: float = 40.0, fill: Optional[float] = None) -> Tuple[Volume, np.ndarray]:
@@ -71,6 +72,25 @@ class Preprocessor:
     mean: Optional[float] = None
     std: Optional[float] = None
 
+    def __post_init__(self):
+        for name in ("spacing", "crop_mm", "lower_percentile", "upper_percentile"):
+            setattr(self, name, float(getattr(self, name)))
+        if not np.isfinite([self.spacing, self.crop_mm]).all() or self.spacing <= 0 or self.crop_mm <= 0:
+            raise ValueError("spacing and crop_mm must be finite and positive")
+        if not 0 <= self.lower_percentile <= self.upper_percentile <= 100:
+            raise ValueError("percentiles must satisfy 0 <= lower <= upper <= 100")
+        names = ("clip_low", "clip_high", "mean", "std")
+        values = [getattr(self, name) for name in names]
+        if all(value is None for value in values):
+            return
+        if any(value is None for value in values):
+            raise ValueError("preprocessing statistics must be complete")
+        values = list(map(float, values))
+        if not np.isfinite(values).all() or values[0] > values[1] or values[3] <= 0:
+            raise ValueError("preprocessing statistics must be finite, ordered and have positive std")
+        for name, value in zip(names, values):
+            setattr(self, name, value)
+
     def fit(self, volumes: Iterable[Volume], foreground: Optional[Iterable[np.ndarray]] = None, max_voxels: int = 200_000,
             seed: int = 0) -> "Preprocessor":
         rng = np.random.default_rng(seed)
@@ -78,6 +98,8 @@ class Preprocessor:
         pairs = ((vol, None) for vol in volumes) if foreground is None else zip(volumes, foreground, strict=True)
         for vol, mask in pairs:
             a = vol.array.astype(np.float32)
+            if not np.isfinite(a).all():
+                raise ValueError("training volumes must contain finite voxels")
             if foreground is None:
                 m = a > np.percentile(a, 90)
             else:
@@ -110,14 +132,11 @@ class Preprocessor:
         return resample_isotropic(lab, self.spacing, order=0)
 
     def save(self, path: Union[str, Path]) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
-        return path
+        return write_json(asdict(self), path)
 
     @classmethod
     def load(cls, path: Union[str, Path]) -> "Preprocessor":
-        return cls(**json.loads(Path(path).read_text(encoding="utf-8")))
+        return cls(**read_json(path))
 
 
 def aneurysm_seed(vol: Volume, threshold_percentile: float = 99.0) -> np.ndarray:

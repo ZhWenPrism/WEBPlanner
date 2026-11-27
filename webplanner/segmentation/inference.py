@@ -114,6 +114,8 @@ class SlidingWindowPredictor:
             img = img[None]
         if img.ndim != 4:
             raise ValueError(f"expected (z, y, x) or (c, z, y, x), got {img.shape}")
+        if not img.size or not np.isfinite(img).all():
+            raise ValueError("inference images must contain non-empty finite voxels")
         shape = np.asarray(img.shape[1:])
         target = np.maximum(shape, self.patch_size)
         before = (target - shape) // 2
