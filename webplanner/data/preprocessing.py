@@ -71,6 +71,25 @@ class Preprocessor:
     mean: Optional[float] = None
     std: Optional[float] = None
 
+    def __post_init__(self):
+        for name in ("spacing", "crop_mm", "lower_percentile", "upper_percentile"):
+            setattr(self, name, float(getattr(self, name)))
+        if not np.isfinite([self.spacing, self.crop_mm]).all() or self.spacing <= 0 or self.crop_mm <= 0:
+            raise ValueError("spacing and crop_mm must be finite and positive")
+        if not 0 <= self.lower_percentile <= self.upper_percentile <= 100:
+            raise ValueError("percentiles must satisfy 0 <= lower <= upper <= 100")
+        names = ("clip_low", "clip_high", "mean", "std")
+        values = [getattr(self, name) for name in names]
+        if all(value is None for value in values):
+            return
+        if any(value is None for value in values):
+            raise ValueError("preprocessing statistics must be complete")
+        values = list(map(float, values))
+        if not np.isfinite(values).all() or values[0] > values[1] or values[3] <= 0:
+            raise ValueError("preprocessing statistics must be finite, ordered and have positive std")
+        for name, value in zip(names, values):
+            setattr(self, name, value)
+
     def fit(self, volumes: Iterable[Volume], foreground: Optional[Iterable[np.ndarray]] = None, max_voxels: int = 200_000,
             seed: int = 0) -> "Preprocessor":
         rng = np.random.default_rng(seed)
